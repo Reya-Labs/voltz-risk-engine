@@ -36,7 +36,7 @@ fraction of undercollarerallised events in the IRS pool, flags for liquidatable 
 ```MasterPlotter.py```: A collection of succinct methods for plotting the results of the IRS pool out put time series, including the margins,
 positions, leverages, APYs, and associated Sharpe ratios for different market conditions. 
 
-### Calling the Risk Engine
+## Calling the Risk Engine
 The main Risk Engine classes are controlled through the ```run_simulator.py``` script, which takes user-defined values of the protocol 
 parameters as input and controls the flow of the Voltz IRS simulation. If the ```RUN_OPTUNA``` flag is set, then this script alternatively
 runs the hyperparameter optimisation of the protocol under a given objective function constructed from the metrics defined in the 
@@ -78,6 +78,10 @@ optional arguments:
   -w, --write_all_out   Save all simulation runs to different DataFrames
   -d, --debug           Debug mode
 ```
+
+## Unit Tests
+The unit testing of different classes is handled by the various ```Test{class}.py``` scripts. These are also called in the ```run_simulator.py`` for
+conveniece of instantiating the relevant methods from the main classes described above. 
 
 # Terms & Conditions
 The Voltz Protocol, and any products or services associated therewith, is offered only to persons (aged 18 years or older) or entities who are not residents of, citizens of, are incorporated in, owned or controlled by a person or entity in, located in, or have a registered office or principal place of business in any “Restricted Territory.”
