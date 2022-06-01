@@ -80,7 +80,7 @@ optional arguments:
 ```
 
 ## Unit Tests
-The unit testing of different classes is handled by the various ```Test{class}.py``` scripts. These are also called in the ```run_simulator.py`` for
+The unit testing of different classes is handled by the various ```Test{class}.py``` scripts. These are also called in the ```run_simulator.py``` for
 conveniece of instantiating the relevant methods from the main classes described above. 
 
 # Terms & Conditions
