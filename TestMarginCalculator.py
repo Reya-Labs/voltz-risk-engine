@@ -58,10 +58,10 @@ class TestMarginCalculator(unittest.TestCase):
             minMarginToIncentiviseLiquidators=MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS,
         )
 
-        self.tokens = ["USDC", "USDT", "TUSD", "DAI"]
-        self.df_original = None
-        self.date_original = None
-        self.df = None # Placeholder, and we update this everytime we process a new token
+        self.tokens = ["USDC", "DAI"]
+        self.df_original = pd.read_csv("./testing_data/test_apy_for_MarginCalculator.csv", index_col="Date")     
+        self.date_original = self.df_original.index
+        self.df = pd.read_csv("./testing_data/test_apy_for_MarginCalculator.csv", index_col="Date")
 
     def date_to_unix_time(self):
         import datetime
@@ -163,12 +163,12 @@ class TestMarginCalculator(unittest.TestCase):
         # that we can later on normalised to SECONDS_IN_YEAR for the APY calculation
         self.df = self.date_to_unix_time()
         for token in list_of_tokens:
-            self.df = self.preprocess_df(token, fr_market=fr_market) # Update for each new token
+            df = self.preprocess_df(token, fr_market=fr_market) # Update for each new token
             # Now we need to update the fixed and variable token balances to account for
             # different possibilities/markets in the fixed rate
-            ft_fixed_token_balance = notional * (self.df["fr"].values[0] * 100)
+            ft_fixed_token_balance = notional * (df["fr"].values[0] * 100)
             ft_variable_token_balance = -notional
-            vt_fixed_token_balance = -notional * (self.df["fr"].values[0] * 100)
+            vt_fixed_token_balance = -notional * (df["fr"].values[0] * 100)
             vt_variable_token_balance = notional
             
             balance_per_token[token] = {
@@ -181,40 +181,40 @@ class TestMarginCalculator(unittest.TestCase):
 
                 if trader_type == 'ft':
 
-                    df = self.marginCalculator.generate_margin_requirements_trader(self.df, ft_fixed_token_balance,
+                    df = self.marginCalculator.generate_margin_requirements_trader(df, ft_fixed_token_balance,
                                                                                        ft_variable_token_balance, 'ft', f'{token}')
 
                     daily_fixed_rate = ((abs(ft_fixed_token_balance) / ft_variable_token_balance) / 100) / 365
                     
-                    fixed_factor_series = pd.Series(data=1, index=range(len(self.df)))
+                    fixed_factor_series = pd.Series(data=1, index=range(len(df)))
                     fixed_factor_series = pd.Series(data=fixed_factor_series.index * daily_fixed_rate)
 
-                    df = self.marginCalculator.generate_pnl_trader(self.df, fixed_factor_series, ft_fixed_token_balance,
+                    df = self.marginCalculator.generate_pnl_trader(df, fixed_factor_series, ft_fixed_token_balance,
                                                                        ft_variable_token_balance, 'ft', f'{token}')
 
-                    df = self.marginCalculator.generate_net_margin_trader(self.df, \
+                    df = self.marginCalculator.generate_net_margin_trader(df, \
                         ft_fixed_token_balance, ft_variable_token_balance, 'ft', f'{token}', leverage_factor=leverage_factor)
 
                 elif trader_type == 'vt':
                     
-                    df = self.marginCalculator.generate_margin_requirements_trader(self.df, vt_fixed_token_balance,
+                    df = self.marginCalculator.generate_margin_requirements_trader(df, vt_fixed_token_balance,
                                                                                        vt_variable_token_balance, 'vt', f'{token}')
 
                     daily_fixed_rate = ((abs(vt_fixed_token_balance) / vt_variable_token_balance) / 100) / 365
 
-                    fixed_factor_series = pd.Series(data=1, index=range(len(self.df)))
+                    fixed_factor_series = pd.Series(data=1, index=range(len(df)))
                     fixed_factor_series = pd.Series(data=fixed_factor_series.index * daily_fixed_rate)
 
-                    df = self.marginCalculator.generate_pnl_trader(self.df, fixed_factor_series,
+                    df = self.marginCalculator.generate_pnl_trader(df, fixed_factor_series,
                                                                        vt_fixed_token_balance,
                                                                        vt_variable_token_balance, 'vt', f'{token}')
 
-                    df = self.marginCalculator.generate_net_margin_trader(self.df, \
+                    df = self.marginCalculator.generate_net_margin_trader(df, \
                         vt_fixed_token_balance, vt_variable_token_balance, 'vt', f'{token}', leverage_factor=leverage_factor)
 
                 else:
                     df = self.marginCalculator.generate_margin_requirements_lp(
-                        df=self.df,
+                        df=df,
                         fixedTokenBalance=lp_fixed_token_balance,
                         variableTokenBalance=lp_variable_token_balance,
                         liquidity=lp_liquidity,
@@ -246,6 +246,9 @@ class TestMarginCalculator(unittest.TestCase):
         return result, balance_per_token
 
     def test_generate_pnl_trader(self):
+        
+        self.df = self.date_to_unix_time()
+        df = self.preprocess_df("USDC", fr_market="neutral") 
 
         fixedTokenBalance = -1000
         variableTokenBalance = 100
@@ -255,25 +258,31 @@ class TestMarginCalculator(unittest.TestCase):
         fixed_factor_series = pd.Series(data=1, index=range(len(self.df)))
         fixed_factor_series = pd.Series(data=fixed_factor_series.index * daily_fixed_rate)
 
-        result = self.marginCalculator.generate_pnl_trader(self.df, fixed_factor_series, fixedTokenBalance, variableTokenBalance, 'vt', 'usdc')
+        result = self.marginCalculator.generate_pnl_trader(df, fixed_factor_series, fixedTokenBalance, variableTokenBalance, 'vt', 'usdc')
 
 
     def test_generate_margin_requirements_trader(self):
+        
+        self.df = self.date_to_unix_time()
+        df = self.preprocess_df("USDC", fr_market="neutral") 
 
         fixedTokenBalance = -1000
         variableTokenBalance = 100
 
-        result = self.marginCalculator.generate_margin_requirements_trader(self.df, fixedTokenBalance, variableTokenBalance,
+        result = self.marginCalculator.generate_margin_requirements_trader(df, fixedTokenBalance, variableTokenBalance,
                                                                            'vt', 'usdc')
         fixedTokenBalance = 100
         variableTokenBalance = -1000
 
-        result = self.marginCalculator.generate_margin_requirements_trader(result, fixedTokenBalance, variableTokenBalance,
+        result = self.marginCalculator.generate_margin_requirements_trader(df, fixedTokenBalance, variableTokenBalance,
                                                                            'ft', 'usdc')
         ## todo: assertion here
 
     def test_generate_margin_requirements_lp(self):
 
+        self.df = self.date_to_unix_time()
+        df = self.preprocess_df("USDC", fr_market="neutral") 
+        
         # df, token, fixedTokenBalance, variableTokenBalance, liquidity, tickLower, tickUpper)
 
         positionLiquidity = 100000
@@ -281,7 +290,7 @@ class TestMarginCalculator(unittest.TestCase):
         tickUpper= 6000
 
         result = self.marginCalculator.generate_margin_requirements_lp(
-            df=self.df,
+            df=df,
             fixedTokenBalance=0,
             variableTokenBalance=0,
             liquidity=positionLiquidity,
