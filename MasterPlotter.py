@@ -27,13 +27,13 @@ class MasterPlotter():
     #   metric: SRs
     #   trader: SR FT
     def dict_to_df(data, trader, metric):
-        coins = position[POSITION]["coins"] # Just these tokens for now
+        tokens = position[POSITION]["tokens"] # Just these tokens for now
         scales = list(data.keys()) # E.g. the different volatility scales
         the_dict = {}
         for s in scales:
             the_dict[s] = {}
-            for c in coins:
-                the_dict[s][c] = data[s][metric][trader+": "+c]
+            for t in tokens:
+                the_dict[s][t] = data[s][metric][trader+": "+t]
         return pd.DataFrame.from_dict(the_dict)
 
     def plot_time_series(df, xlabel="Time", ylabel="", variables=None, logy=False, save=None, title=""):
