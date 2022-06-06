@@ -2,19 +2,18 @@ import unittest
 from MarginCalculator import SECONDS_IN_YEAR
 from PortfolioCalculator import PortfolioCalculator
 import pandas as pd
-import numpy as np
 
 class TestPortfolioCalculator(unittest.TestCase):
 
     def setUp(self):
 
-        df_protocol = pd.read_csv("./historical_data/composite_df_AaveVariable_apy.csv", index_col="Date")     
+        df_protocol = pd.read_csv("./testing_data/test_apy_for_PortfolioCalculator.csv", index_col="date")     
         tokens = ["USDC", "USDT", "DAI"]
         
         self.portfolioCalculator = PortfolioCalculator(
             df_protocol=df_protocol,
             lambdaFee=0.1,
-            gammaFee=0.1,
+            gammaFee=0.003,
             tokens=tokens,
             liquidity=1000,
             balances=None,
@@ -50,7 +49,7 @@ class TestPortfolioCalculator(unittest.TestCase):
         # Get the APYs from the PnLs and the deposited margins
         self.portfolioCalculator.computeActorAPYs()
 
-        #print("Completed LP PnL and net margin generation")
+        print("Completed LP PnL and net margin generation")
     
     def test_sharpe_ratio_undercol_events(self, tick_l=5000, tick_u=6000):
 
@@ -60,7 +59,7 @@ class TestPortfolioCalculator(unittest.TestCase):
         levs = self.portfolioCalculator.computeLeverage(tickLower=tick_l, tickUpper=tick_u) # Leverage calculation
         the_apys = self.portfolioCalculator.returnAPYs()
 
-        #print("Completed Sharpe ratio and undercolateralisation calculations")
+        print("Completed Sharpe ratio and undercolateralisation calculations")
 
         return sharpes, undercols, l_factors, levs, the_apys
 
