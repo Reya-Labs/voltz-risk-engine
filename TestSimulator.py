@@ -3,9 +3,10 @@ from zlib import Z_BEST_COMPRESSION
 import pandas as pd
 import numpy as np
 from Simulator import Simulator
+from TestMarginCalculator import XI_LOWER, XI_UPPER
 
 # Test using example scraped APY data from Aave
-TOP_DIR = "./test_data/"
+TOP_DIR = "./historical_data/"
 DF_PROTOCOL = pd.read_csv(TOP_DIR+"composite_df_AaveVariable_apy.csv")
 DF_PROTOCOL.dropna(inplace=True)
 DF_PROTOCOL.set_index("Date", inplace=True)
@@ -46,21 +47,22 @@ SIGMA_DICT = {
             "USDT": 0.28628269263063927,
             "TUSD": 0.7792631219857528
 }
-DT = 1/365
+DT = 1.
 F = 1.
-Z_SCORE = 1.96
+XI_UPPER = 39
+XI_LOWER = 98
 
 class TestSimulator(unittest.TestCase):
 
-    def initalise(self):
+    def setUp(self):
         self.simulator = Simulator(df_protocol=DF_PROTOCOL, a_values_dict=A_VALUES_DICT, b_values_dict=B_VALUES_DICT, sigma_dict=SIGMA_DICT)
     
     # Need to add unit tests which compare outputs of pandas DataFrames
     def test_simulator(self):
-        self.simulator.model_apy(dt=DT, F=F)
-        self.simulator.compute_apy_confidence_interval(z_score=Z_SCORE)
+        DF_APY = self.simulator.model_apy(dt=DT, F=F)
+        self.simulator.compute_apy_confidence_interval(xi_lower=XI_LOWER, xi_upper=XI_UPPER, df_apy=DF_APY, F=F)
 
-        DF_PROTOCOL.to_csv(TOP_DIR+"composite_df_AaveVariable_apy_SimulatorUnitTest.csv")
+        #DF_PROTOCOL.to_csv(TOP_DIR+"composite_df_AaveVariable_apy_SimulatorUnitTest.csv")
 
 if __name__=="__main__":
     unittest.main()
