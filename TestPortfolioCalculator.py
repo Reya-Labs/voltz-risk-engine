@@ -8,7 +8,7 @@ class TestPortfolioCalculator(unittest.TestCase):
 
     def setUp(self):
 
-        df_protocol = pd.read_csv('./test_data/dummy_results.csv', index_col='date')
+        df_protocol = pd.read_csv("./historical_data/composite_df_AaveVariable_apy.csv", index_col="Date")     
         tokens = ["USDC", "USDT", "DAI"]
         
         self.portfolioCalculator = PortfolioCalculator(
