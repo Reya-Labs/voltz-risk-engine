@@ -5,7 +5,7 @@ from Calibrator import Calibrator
 
 
 # Test using example scraped APY data from Aave
-TOP_DIR = "./test_data/"
+TOP_DIR = "./historical_data/"
 DF_PROTOCOL = pd.read_csv(TOP_DIR+"composite_df_AaveVariable_apy.csv")
 DF_PROTOCOL.dropna(inplace=True)
 DF_PROTOCOL.set_index("Date", inplace=True)
@@ -13,7 +13,7 @@ DISC_DRIFT = 0.99
 
 class TestCalibrator(unittest.TestCase):
     
-    def instantiate(self):
+    def setUp(self):
         self.calibrator = Calibrator(df_protocol=DF_PROTOCOL, disc_drift=DISC_DRIFT)
     
     def test_calibrator(self):

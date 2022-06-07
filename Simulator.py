@@ -15,7 +15,7 @@ from MarginCalculator import SECONDS_IN_YEAR
         b) For these parameters, perform APY simulation using the CIR model and existing
         calibrations.
 
-    2) Calculation of the APY bounds for each coin and corresponding replicates based on different
+    2) Calculation of the APY bounds for each token and corresponding replicates based on different
     sigma scalings F -- this part of the calculation follows directly from litepaper, computing the closed-form
     solution for the APY bounds assuming a fixed volatility and CIR calibration. 
 """
@@ -60,12 +60,12 @@ class Simulator(Calibrator):
     """
     def model_apy(self, dt=1, F=1.):
         df_deep_copy = self.df_protocol.copy()
-        coins = [c for c in self.df_protocol.columns if (("model" not in c) and ("Date" not in c))]
+        tokens = [c for c in self.df_protocol.columns if (("model" not in c) and ("Date" not in c))]
         # Set random seed for all simulations
         np.random.seed(42)
-        for coin in coins:
-            a, b, sigma = self.a_values_dict[coin], self.b_values_dict[coin], self.sigma_dict[coin]*F
-            apy_i = df_deep_copy[coin].values[0]
+        for token in tokens:
+            a, b, sigma = self.a_values_dict[token], self.b_values_dict[token], self.sigma_dict[token]*F
+            apy_i = df_deep_copy[token].values[0]
             apy_model = [apy_i]
             for i in range(1, len(df_deep_copy)):
                 dapy = a*(b-apy_i)*dt + sigma * np.sqrt(apy_i) * np.random.normal(0,1,1)[0] * np.sqrt(dt) # Need a random seed for this
@@ -76,7 +76,7 @@ class Simulator(Calibrator):
                     apy_i = b/100 # Some tolerance based on the average APY
                 
                 apy_model.append(apy_i)
-            df_deep_copy[coin + " model"] = apy_model
+            df_deep_copy[token + " model"] = apy_model
         
         return df_deep_copy
     
@@ -92,25 +92,25 @@ class Simulator(Calibrator):
         if "model" not in " ".join(df_apy.columns):
             raise Exception("No APY model found. Plase run model_apy() first")
             
-        coins = [c for c in df_apy.columns if (("model" not in c) and ("Date" not in c))]
+        tokens = [c for c in df_apy.columns if (("model" not in c) and ("Date" not in c))]
         # Calculate the appropriate time deltas
         time_deltas = np.array([(len(df_apy)-1-i)*SECONDS_IN_DAY/self.tMax for i in range(len(df_apy))])
-        for coin in coins:
-            alpha = self.a_values_dict[coin]*self.b_values_dict[coin]
-            beta = self.a_values_dict[coin]
-            sigma = self.sigma_dict[coin]*F
+        for token in tokens:
+            alpha = self.a_values_dict[token]*self.b_values_dict[token]
+            beta = self.a_values_dict[token]
+            sigma = self.sigma_dict[token]*F
             k = 4*alpha/sigma**2
         
             # Litepaper parameters
             time_factor = np.array([np.exp(-beta*dt) for dt in time_deltas])
             zeta = sigma**2 * (1-time_factor)/(4*beta)
-            lamb = (1/zeta) * time_factor * df_apy[coin + " model"]
+            lamb = (1/zeta) * time_factor * df_apy[token + " model"]
         
             # Translate to APY confidence intervals
             apy_lower = np.maximum(zeta*(k + lamb - xi_lower*np.sqrt(2*(k+2*lamb))), np.zeros(len(lamb)))
             apy_upper = zeta*(k + lamb + xi_upper*np.sqrt(2*(k+2*lamb)))
         
-            df_apy[coin + " APY lower"] = apy_lower
-            df_apy[coin + " APY upper"] = apy_upper
+            df_apy[token + " APY lower"] = apy_lower
+            df_apy[token + " APY upper"] = apy_upper
 
         return df_apy
