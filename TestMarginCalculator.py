@@ -3,7 +3,7 @@ import unittest
 from MarginCalculator import MarginCalculator
 import pandas as pd
 import numpy as np
-from MarginCalculator import SECONDS_IN_YEAR
+from utils.utils import SECONDS_IN_WEEK, SECONDS_IN_YEAR, fixedRateToSqrtPrice, fixedRateToTick, notional_to_liquidity
 
 APY_UPPER_MULTIPLIER = 1.5
 APY_LOWER_MULTIPLIER = 0.7
@@ -63,6 +63,94 @@ class TestMarginCalculator(unittest.TestCase):
         self.date_original = self.df_original.index
         self.df = pd.read_csv("./testing_data/test_apy_for_MarginCalculator.csv", index_col="Date")
 
+
+    def test_fixed_factor(self):
+        fixedFactor = self.marginCalculator.fixedFactor(False, TERM_START_TIMESTAMP, TERM_START_TIMESTAMP + SECONDS_IN_YEAR, TERM_START_TIMESTAMP)
+        self.assertAlmostEqual(fixedFactor, 0)
+
+        fixedFactor = self.marginCalculator.fixedFactor(True, TERM_START_TIMESTAMP, TERM_START_TIMESTAMP + SECONDS_IN_YEAR, TERM_START_TIMESTAMP + SECONDS_IN_WEEK)
+        self.assertAlmostEqual(fixedFactor, 0.01)
+
+        fixedFactor = self.marginCalculator.fixedFactor(False, TERM_START_TIMESTAMP, TERM_START_TIMESTAMP + SECONDS_IN_YEAR, TERM_START_TIMESTAMP + SECONDS_IN_WEEK)
+        self.assertAlmostEqual(fixedFactor, 0.01 * 7 / 365)
+
+    def test_get_excess_balance(self):
+        amount0 = -1000
+        amount1 = 1000
+        accruedVariableFactor = 0.02
+        termStartTimestamp = TERM_START_TIMESTAMP - SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + 2 * SECONDS_IN_WEEK
+
+        realized = self.marginCalculator.getExcessBalance(amount0, amount1, accruedVariableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp)
+
+        self.assertAlmostEqual(realized, 19808219178082192000 / 1e18)
+
+
+        amount0 = -1000
+        amount1 = 2000
+        accruedVariableFactor = 0.02
+        termStartTimestamp = TERM_START_TIMESTAMP - SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + 2 * SECONDS_IN_WEEK
+
+        realized = self.marginCalculator.getExcessBalance(amount0, amount1, accruedVariableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp)
+
+        self.assertAlmostEqual(realized, 39808219178082192000 / 1e18, delta=1e-6)
+
+
+        amount0 = 1000
+        amount1 = -1000
+        accruedVariableFactor = 0.02
+        termStartTimestamp = TERM_START_TIMESTAMP - SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + 2 * SECONDS_IN_WEEK
+
+        realized = self.marginCalculator.getExcessBalance(amount0, amount1, accruedVariableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp)
+
+        self.assertAlmostEqual(realized, -19808219178082192000 / 1e18, delta=1e-6)
+
+        amount0 = 1000
+        amount1 = -2000
+        accruedVariableFactor = 0.02
+        termStartTimestamp = TERM_START_TIMESTAMP - SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + 2 * SECONDS_IN_WEEK
+
+        realized = self.marginCalculator.getExcessBalance(amount0, amount1, accruedVariableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp)
+
+        self.assertAlmostEqual(realized, -39808219178082192000 / 1e18, delta=1e-6)
+
+
+    def test_get_fixed_token_balance(self):
+        amount0 = 1000
+        amount1 = -1000
+        accruedVariableFactor = 0.02
+        termStartTimestamp = TERM_START_TIMESTAMP - SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + 2 * SECONDS_IN_WEEK
+
+        realized = self.marginCalculator.getFixedTokenBalance(amount0, amount1, accruedVariableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp)
+
+        self.assertAlmostEqual(realized, 35428571428571468299319 / 1e18, delta=1e-6)
+
+
+    def test_get_fixed_token_delta_unbalanced_simulated_unwind(self):
+        variableTokenDeltaAbsolute = 1000
+        print("tick for fixedRate 1", fixedRateToTick(0))
+        fixedRateStart = 0.01
+        startingFixedRateMultiplier = 1.5
+        fixedRateDeviationMin = 0.002
+        termEndTimestamp = TERM_START_TIMESTAMP + 3 * SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        tMax = T_MAX
+        gamma = 1
+        isFTUnwind = True
+        
+        realized = self.marginCalculator.getFixedTokenDeltaUnbalancedSimulatedUnwind(variableTokenDeltaAbsolute, fixedRateStart, startingFixedRateMultiplier, fixedRateDeviationMin, termEndTimestamp, currentTimestamp, tMax, gamma, isFTUnwind)
+
+        print("realized:", realized)
+
     def date_to_unix_time(self):
         import datetime
         import time
@@ -80,19 +168,19 @@ class TestMarginCalculator(unittest.TestCase):
 
         return df
 
-    """
-        This is an important method which organises the outputs of the Simulator into relevant APYs and
-        rates. Specifically we have the following:
+    # """
+    #     This is an important method which organises the outputs of the Simulator into relevant APYs and
+    #     rates. Specifically we have the following:
 
-        1) Variable rate --> the Simulator APY
-        2) Fixed rate --> we consider three different scenarios:
-            a) Neutral: fixed rate = variable rate (default)
-            b) Bull: fixed rate = variable rate + const * time to maturity + error term
-            c) Bear: fixed rate = variable rate - const * time to maturity - error term
+    #     1) Variable rate --> the Simulator APY
+    #     2) Fixed rate --> we consider three different scenarios:
+    #         a) Neutral: fixed rate = variable rate (default)
+    #         b) Bull: fixed rate = variable rate + const * time to maturity + error term
+    #         c) Bear: fixed rate = variable rate - const * time to maturity - error term
 
-        IMPORTANT: we need to ensure the timestamps are already converted to Unix time, so need to call
-        data_to_unix_time before running this processing step.
-    """
+    #     IMPORTANT: we need to ensure the timestamps are already converted to Unix time, so need to call
+    #     data_to_unix_time before running this processing step.
+    # """
     def preprocess_df(self, token, fr_market="neutral"):
 
         # Pick a single token
@@ -151,7 +239,7 @@ class TestMarginCalculator(unittest.TestCase):
         lp_variable_token_balance = lp_var
         tickLower = tick_l
         tickUpper = tick_u
-        lp_liquidity = self.marginCalculator.notional_to_liquidity(notional=notional, tick_l=tickLower, tick_u=tickUpper)
+        lp_liquidity = notional_to_liquidity(notional=notional, tick_l=tickLower, tick_u=tickUpper)
 
         list_of_tokens = self.tokens
         trader_types = ["ft", "vt", "lp"]
@@ -245,186 +333,186 @@ class TestMarginCalculator(unittest.TestCase):
 
         return result, balance_per_token
 
-    def test_generate_pnl_trader(self):
+    # def test_generate_pnl_trader(self):
         
-        self.df = self.date_to_unix_time()
-        df = self.preprocess_df("USDC", fr_market="neutral") 
+    #     self.df = self.date_to_unix_time()
+    #     df = self.preprocess_df("USDC", fr_market="neutral") 
 
-        fixedTokenBalance = -1000
-        variableTokenBalance = 100
+    #     fixedTokenBalance = -1000
+    #     variableTokenBalance = 100
 
-        daily_fixed_rate = ((abs(fixedTokenBalance) / variableTokenBalance) / 100) / 365
+    #     daily_fixed_rate = ((abs(fixedTokenBalance) / variableTokenBalance) / 100) / 365
 
-        fixed_factor_series = pd.Series(data=1, index=range(len(self.df)))
-        fixed_factor_series = pd.Series(data=fixed_factor_series.index * daily_fixed_rate)
+    #     fixed_factor_series = pd.Series(data=1, index=range(len(self.df)))
+    #     fixed_factor_series = pd.Series(data=fixed_factor_series.index * daily_fixed_rate)
 
-        result = self.marginCalculator.generate_pnl_trader(df, fixed_factor_series, fixedTokenBalance, variableTokenBalance, 'vt', 'usdc')
+    #     result = self.marginCalculator.generate_pnl_trader(df, fixed_factor_series, fixedTokenBalance, variableTokenBalance, 'vt', 'usdc')
 
 
-    def test_generate_margin_requirements_trader(self):
+    # def test_generate_margin_requirements_trader(self):
         
-        self.df = self.date_to_unix_time()
-        df = self.preprocess_df("USDC", fr_market="neutral") 
+    #     self.df = self.date_to_unix_time()
+    #     df = self.preprocess_df("USDC", fr_market="neutral") 
 
-        fixedTokenBalance = -1000
-        variableTokenBalance = 100
+    #     fixedTokenBalance = -1000
+    #     variableTokenBalance = 100
 
-        result = self.marginCalculator.generate_margin_requirements_trader(df, fixedTokenBalance, variableTokenBalance,
-                                                                           'vt', 'usdc')
-        fixedTokenBalance = 100
-        variableTokenBalance = -1000
+    #     result = self.marginCalculator.generate_margin_requirements_trader(df, fixedTokenBalance, variableTokenBalance,
+    #                                                                        'vt', 'usdc')
+    #     fixedTokenBalance = 100
+    #     variableTokenBalance = -1000
 
-        result = self.marginCalculator.generate_margin_requirements_trader(df, fixedTokenBalance, variableTokenBalance,
-                                                                           'ft', 'usdc')
-        ## todo: assertion here
+    #     result = self.marginCalculator.generate_margin_requirements_trader(df, fixedTokenBalance, variableTokenBalance,
+    #                                                                        'ft', 'usdc')
+    #     ## todo: assertion here
 
-    def test_generate_margin_requirements_lp(self):
+    # def test_generate_margin_requirements_lp(self):
 
-        self.df = self.date_to_unix_time()
-        df = self.preprocess_df("USDC", fr_market="neutral") 
+    #     self.df = self.date_to_unix_time()
+    #     df = self.preprocess_df("USDC", fr_market="neutral") 
         
-        # df, token, fixedTokenBalance, variableTokenBalance, liquidity, tickLower, tickUpper)
+    #     # df, token, fixedTokenBalance, variableTokenBalance, liquidity, tickLower, tickUpper)
 
-        positionLiquidity = 100000
-        tickLower = 5000
-        tickUpper= 6000
+    #     positionLiquidity = 100000
+    #     tickLower = 5000
+    #     tickUpper= 6000
 
-        result = self.marginCalculator.generate_margin_requirements_lp(
-            df=df,
-            fixedTokenBalance=0,
-            variableTokenBalance=0,
-            liquidity=positionLiquidity,
-            tickLower=tickLower,
-            tickUpper=tickUpper,
-            token='usdc'
-        )
+    #     result = self.marginCalculator.generate_margin_requirements_lp(
+    #         df=df,
+    #         fixedTokenBalance=0,
+    #         variableTokenBalance=0,
+    #         liquidity=positionLiquidity,
+    #         tickLower=tickLower,
+    #         tickUpper=tickUpper,
+    #         token='usdc'
+    #     )
 
-        # todo: assertion here
-
-
-
-    def test_fixed_factor(self):
-
-        fixedFactor = self.marginCalculator.fixedFactor(atMaturity=True, termStartTimestamp=TERM_START_TIMESTAMP,
-                                                   termEndTimestamp=TERM_END_TIMESTAMP,
-                                                   currentTimestamp=TERM_END_TIMESTAMP)
-
-        self.assertEqual(fixedFactor, 0.009945205479452055)
-
-    def test_get_fixed_token_balance(self):
-
-        excessBalance = self.marginCalculator.getExcessBalance(
-            amountFixed=AMOUNT_FIXED,
-            amountVariable=AMOUNT_VARIABLE,
-            accruedVariableFactor=ACCRUED_VARIABLE_FACTOR,
-            termStartTimestamp=TERM_START_TIMESTAMP,
-            termEndTimestamp=TERM_END_TIMESTAMP,
-            currentTimestamp=TERM_START_TIMESTAMP,
-        )
-
-        fixedTokenBalanace = self.marginCalculator.calculateFixedTokenBalance(
-            amountFixed=1000,
-            excessBalance=excessBalance,
-            termStartTimestamp=TERM_START_TIMESTAMP,
-            termEndTimestamp=TERM_END_TIMESTAMP,
-            currentTimestamp=TERM_START_TIMESTAMP
-        )
-
-        fixedTokenBalanceDirectCalculation = self.marginCalculator.getFixedTokenBalance(
-            amountFixed=AMOUNT_FIXED,
-            amountVariable=AMOUNT_VARIABLE,
-            accruedVariableFactor=ACCRUED_VARIABLE_FACTOR,
-            termStartTimestamp=TERM_START_TIMESTAMP,
-            termEndTimestamp=TERM_END_TIMESTAMP,
-            currentTimestamp=TERM_START_TIMESTAMP
-        )
-
-        self.assertEqual(fixedTokenBalanceDirectCalculation, fixedTokenBalanace)
-
-    def test_get_minimum_margin_requirement(self):
-        # Minimum Margin Requirement sheet: https://docs.google.com/spreadsheets/d/1FjNbw4bojgH4_MERARQD2F_y_lzflEi6H7j-Y6pfAA4/edit?usp=sharing
-
-        # lower and upper apy bounds should not have an effect on the minimum margin calculation
-        fixedTokenBalance = 1162.377956
-        variableTokenBalance = -183.7789286
-        currentTimestamp = 1645126092
-        termStartTimestamp = currentTimestamp
-        termEndTimestamp = 1645730883
-        fixedRate = 10.0009978
-        accruedVariableFactor = 0
-        isLM = True
-        dummyLowerApyBound = 0.01
-        dummyUpperApyBound = 0.05
-
-        minimumMarginRequirement = self.marginCalculator.getMinimumMarginRequirement(
-            fixedTokenBalance=fixedTokenBalance,
-            variableTokenBalance=variableTokenBalance,
-            isLM=isLM,
-            fixedRate=fixedRate,
-            currentTimestamp=currentTimestamp,
-            accruedVariableFactor=accruedVariableFactor,
-            lowerApyBound=dummyLowerApyBound,
-            upperApyBound=dummyUpperApyBound,
-            termStartTimestamp=termStartTimestamp,
-            termEndTimestamp=termEndTimestamp
-        )
-
-        self.assertEqual(minimumMarginRequirement, 0.13291189658225627)
+    #     # todo: assertion here
 
 
-    def test_get_position_margin_requirement(self):
 
-        # trader, non-lp
+    # def test_fixed_factor(self):
 
-        fixedTokenBalance = 1000
-        variableTokenBalance = -3000
-        isLM = False
+    #     fixedFactor = self.marginCalculator.fixedFactor(atMaturity=True, termStartTimestamp=TERM_START_TIMESTAMP,
+    #                                                termEndTimestamp=TERM_END_TIMESTAMP,
+    #                                                currentTimestamp=TERM_END_TIMESTAMP)
 
-        marginRequirement = self.marginCalculator._getMarginRequirement(
-            fixedTokenBalance=fixedTokenBalance,
-            variableTokenBalance=variableTokenBalance,
-            isLM=isLM,
-            lowerApyBound=0.01,
-            upperApyBound=0.05,
-            termStartTimestamp=TERM_START_TIMESTAMP,
-            termEndTimestamp=TERM_END_TIMESTAMP,
-            currentTimestamp=TERM_START_TIMESTAMP
-        )
+    #     self.assertEqual(fixedFactor, 0.009945205479452055)
 
-        self.assertEqual(marginRequirement, 213.82191780821918) # need to double check
+    # def test_get_fixed_token_balance(self):
 
-    def test_get_lp_position_margin_requirement(self):
+    #     excessBalance = self.marginCalculator.getExcessBalance(
+    #         amountFixed=AMOUNT_FIXED,
+    #         amountVariable=AMOUNT_VARIABLE,
+    #         accruedVariableFactor=ACCRUED_VARIABLE_FACTOR,
+    #         termStartTimestamp=TERM_START_TIMESTAMP,
+    #         termEndTimestamp=TERM_END_TIMESTAMP,
+    #         currentTimestamp=TERM_START_TIMESTAMP,
+    #     )
 
-        variableFactor = 0
-        currentTick = 0
-        sqrtPrice = 1  # corresponds to a tick of 0 above
-        positionLiquidity = 100000
-        tickLower = -60
-        tickUpper = 60
-        positionVariableTokenBalance = 0
-        positionFixedTokenBalance = 0
-        isLM = True
-        lowerApyBound = 0.01
-        upperApyBound = 0.05
+    #     fixedTokenBalanace = self.marginCalculator.calculateFixedTokenBalance(
+    #         amountFixed=1000,
+    #         excessBalance=excessBalance,
+    #         termStartTimestamp=TERM_START_TIMESTAMP,
+    #         termEndTimestamp=TERM_END_TIMESTAMP,
+    #         currentTimestamp=TERM_START_TIMESTAMP
+    #     )
 
-        marginRequirement = self.marginCalculator.getPositionMarginRequirement(
-            variableFactor=variableFactor,
-            currentTick=currentTick,
-            sqrtPrice=sqrtPrice,
-            positionLiquidity=positionLiquidity,
-            tickLower=tickLower,
-            tickUpper=tickUpper,
-            positionVariableTokenBalance=positionVariableTokenBalance,
-            positionFixedTokenBalance=positionFixedTokenBalance,
-            isLM=isLM,
-            lowerApyBound=lowerApyBound,
-            upperApyBound=upperApyBound,
-            currentTimestamp=TERM_START_TIMESTAMP,
-            termStartTimestamp=TERM_START_TIMESTAMP,
-            termEndTimestamp=TERM_END_TIMESTAMP
-        )
+    #     fixedTokenBalanceDirectCalculation = self.marginCalculator.getFixedTokenBalance(
+    #         amountFixed=AMOUNT_FIXED,
+    #         amountVariable=AMOUNT_VARIABLE,
+    #         accruedVariableFactor=ACCRUED_VARIABLE_FACTOR,
+    #         termStartTimestamp=TERM_START_TIMESTAMP,
+    #         termEndTimestamp=TERM_END_TIMESTAMP,
+    #         currentTimestamp=TERM_START_TIMESTAMP
+    #     )
 
-        self.assertEqual(marginRequirement, 11.906818411512914)  # need to double check
+    #     self.assertEqual(fixedTokenBalanceDirectCalculation, fixedTokenBalanace)
+
+    # def test_get_minimum_margin_requirement(self):
+    #     # Minimum Margin Requirement sheet: https://docs.google.com/spreadsheets/d/1FjNbw4bojgH4_MERARQD2F_y_lzflEi6H7j-Y6pfAA4/edit?usp=sharing
+
+    #     # lower and upper apy bounds should not have an effect on the minimum margin calculation
+    #     fixedTokenBalance = 1162.377956
+    #     variableTokenBalance = -183.7789286
+    #     currentTimestamp = 1645126092
+    #     termStartTimestamp = currentTimestamp
+    #     termEndTimestamp = 1645730883
+    #     fixedRate = 10.0009978
+    #     accruedVariableFactor = 0
+    #     isLM = True
+    #     dummyLowerApyBound = 0.01
+    #     dummyUpperApyBound = 0.05
+
+    #     minimumMarginRequirement = self.marginCalculator.getMinimumMarginRequirement(
+    #         fixedTokenBalance=fixedTokenBalance,
+    #         variableTokenBalance=variableTokenBalance,
+    #         isLM=isLM,
+    #         fixedRate=fixedRate,
+    #         currentTimestamp=currentTimestamp,
+    #         accruedVariableFactor=accruedVariableFactor,
+    #         lowerApyBound=dummyLowerApyBound,
+    #         upperApyBound=dummyUpperApyBound,
+    #         termStartTimestamp=termStartTimestamp,
+    #         termEndTimestamp=termEndTimestamp
+    #     )
+
+    #     self.assertEqual(minimumMarginRequirement, 0.13291189658225627)
+
+
+    # def test_get_position_margin_requirement(self):
+
+    #     # trader, non-lp
+
+    #     fixedTokenBalance = 1000
+    #     variableTokenBalance = -3000
+    #     isLM = False
+
+    #     marginRequirement = self.marginCalculator._getMarginRequirement(
+    #         fixedTokenBalance=fixedTokenBalance,
+    #         variableTokenBalance=variableTokenBalance,
+    #         isLM=isLM,
+    #         lowerApyBound=0.01,
+    #         upperApyBound=0.05,
+    #         termStartTimestamp=TERM_START_TIMESTAMP,
+    #         termEndTimestamp=TERM_END_TIMESTAMP,
+    #         currentTimestamp=TERM_START_TIMESTAMP
+    #     )
+
+    #     self.assertEqual(marginRequirement, 213.82191780821918) # need to double check
+
+    # def test_get_lp_position_margin_requirement(self):
+
+        # variableFactor = 0
+        # currentTick = 0
+        # sqrtPrice = 1  # corresponds to a tick of 0 above
+        # positionLiquidity = 100000
+        # tickLower = -60
+        # tickUpper = 60
+        # positionVariableTokenBalance = 0
+        # positionFixedTokenBalance = 0
+        # isLM = True
+        # lowerApyBound = 0.01
+        # upperApyBound = 0.05
+
+        # marginRequirement = self.marginCalculator.getPositionMarginRequirement(
+        #     variableFactor=variableFactor,
+        #     currentTick=currentTick,
+        #     sqrtPrice=sqrtPrice,
+        #     positionLiquidity=positionLiquidity,
+        #     tickLower=tickLower,
+        #     tickUpper=tickUpper,
+        #     positionVariableTokenBalance=positionVariableTokenBalance,
+        #     positionFixedTokenBalance=positionFixedTokenBalance,
+        #     isLM=isLM,
+        #     lowerApyBound=lowerApyBound,
+        #     upperApyBound=upperApyBound,
+        #     currentTimestamp=TERM_START_TIMESTAMP,
+        #     termStartTimestamp=TERM_START_TIMESTAMP,
+        #     termEndTimestamp=TERM_END_TIMESTAMP
+        # )
+
+        # self.assertEqual(marginRequirement, 11.906818411512914)  # need to double check
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,7 +1,5 @@
 import math
-
-SECONDS_IN_YEAR = 31536000
-
+from utils.utils import SECONDS_IN_YEAR, fixedRateToSqrtPrice, fixedRateToTick, getAmount0Delta, getAmount1Delta, getSqrtRatioAtTick, sqrtPriceToFixedRate
 
 class MarginCalculator:
 
@@ -32,7 +30,6 @@ class MarginCalculator:
         self.gamma = gamma
         self.minMarginToIncentiviseLiquidators = minMarginToIncentiviseLiquidators
 
-
     def compute_minimum_margin_requirement_df_row(self, row, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance, isLM):
 
         minimum_margin_requirement = self.getMinimumMarginRequirement(
@@ -50,13 +47,6 @@ class MarginCalculator:
 
         return minimum_margin_requirement
 
-    def fixedRateToSqrtPrice(self, fixedRate):
-
-        return math.sqrt(1 / fixedRate)
-
-
-
-
     def compute_margin_requirement_df_row_trader(self, row, termStartTimestamp, termEndTimestamp,
                                                  fixedTokenBalance, variableTokenBalance, isLM):
 
@@ -64,7 +54,7 @@ class MarginCalculator:
             fixedTokenBalance=fixedTokenBalance,
             variableTokenBalance=variableTokenBalance,
             isLM=isLM,
-            sqrtPrice=self.fixedRateToSqrtPrice(row['fr']*100),
+            sqrtPrice=fixedRateToSqrtPrice(row['fr']*100),
             lowerApyBound=row['lower'],
             upperApyBound=row['upper'],
             termStartTimestamp=termStartTimestamp,
@@ -78,11 +68,14 @@ class MarginCalculator:
     def generate_pnl_trader(self, df, fixedFactorSeries, fixedTokenBalance, variableTokenBalance, trader_type, token):
 
         if variableTokenBalance > 0:
-            df.loc[:, 'net factor'] = df.loc[:, 'variable factor'] - fixedFactorSeries
+            df.loc[:, 'net factor'] = df.loc[:,
+                                             'variable factor'] - fixedFactorSeries
         else:
-            df.loc[:, 'net factor'] = fixedFactorSeries - df.loc[:, 'variable factor']
+            df.loc[:, 'net factor'] = fixedFactorSeries - \
+                df.loc[:, 'variable factor']
 
-        df.loc[:, f'pnl_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = abs(variableTokenBalance) * df.loc[:, 'net factor']
+        df.loc[:, f'pnl_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = abs(
+            variableTokenBalance) * df.loc[:, 'net factor']
 
         return df
 
@@ -93,13 +86,15 @@ class MarginCalculator:
         # column with the initial margin requirement
         column_name = f'mr_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'
         initial_margin_requirement_series = df.loc[:, column_name]
-        margin_deposited = initial_margin_requirement_series[0] * leverage_factor 
+        margin_deposited = initial_margin_requirement_series[0] * \
+            leverage_factor
         pnl_column_name = f'pnl_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'
-        df.loc[:, f"margin_deposited_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}"] = margin_deposited
-        df.loc[:, f"net_margin_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}"] = margin_deposited + df.loc[:, pnl_column_name]
+        df.loc[:,
+               f"margin_deposited_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}"] = margin_deposited
+        df.loc[:, f"net_margin_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}"] = margin_deposited + \
+            df.loc[:, pnl_column_name]
 
         return df
-
 
     def generate_margin_requirements_trader(self, df, fixedTokenBalance, variableTokenBalance, trader_type, token):
 
@@ -108,49 +103,38 @@ class MarginCalculator:
         termEndTimestamp = df.loc[:, "date"].iloc[-1]
 
         df.loc[:, f'mmr_lm_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(self.compute_minimum_margin_requirement_df_row,
-                                    args=(termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
-                                          True),
-                                    axis=1)
+                                                                                                         args=(termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
+                                                                                                               True),
+                                                                                                         axis=1)
 
         df.loc[:, f'mmr_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(self.compute_minimum_margin_requirement_df_row,
-                                    args=(termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
-                                          False),
-                                    axis=1)
+                                                                                                         args=(termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
+                                                                                                               False),
+                                                                                                         axis=1)
 
         df.loc[:, f'mr_lm_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(self.compute_margin_requirement_df_row_trader,
-                                    args=(termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
-                                          True),
-                                    axis=1)
+                                                                                                        args=(termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
+                                                                                                              True),
+                                                                                                        axis=1)
 
         df.loc[:, f'mr_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(self.compute_margin_requirement_df_row_trader,
-                                    args=(termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
-                                          False),
-                                    axis=1)
+                                                                                                        args=(termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
+                                                                                                              False),
+                                                                                                        axis=1)
 
         return df
 
-
-    def fixedRateToTick(self, fixedRate):
-
-        price = 1 / fixedRate
-        # price = 1.0001^(tick)
-        # tick = log_1.0001(price)
-
-        return math.log(price, 1.0001)
-
-
-
     def compute_margin_requirement_df_row_lp(self, row, termStartTimestamp, termEndTimestamp,
-                                            positionLiquidity, tickLower, tickUpper, positionVariableTokenBalance,
-                                            positionFixedTokenBalance, isLM):
-        
+                                             positionLiquidity, tickLower, tickUpper, positionVariableTokenBalance,
+                                             positionFixedTokenBalance, isLM):
+
         marginRequirement = self.getPositionMarginRequirement(
             variableFactor=0,
-            currentTick=self.fixedRateToTick(row['fr']*100),
+            currentTick=fixedRateToTick(row['fr']*100),
             positionLiquidity=positionLiquidity,
             tickLower=tickLower,
             tickUpper=tickUpper,
-            sqrtPrice=self.fixedRateToSqrtPrice(row['fr']*100),
+            sqrtPrice=fixedRateToSqrtPrice(row['fr']*100),
             termStartTimestamp=termStartTimestamp,
             termEndTimestamp=termEndTimestamp,
             currentTimestamp=row['date'],
@@ -172,18 +156,17 @@ class MarginCalculator:
         termEndTimestamp = df.loc[:, "date"].iloc[-1]
 
         df.loc[:, f'mr_lm_lp_{token}_{fixedTokenBalance}_{variableTokenBalance}_{liquidity}'] = df.apply(self.compute_margin_requirement_df_row_lp,
-                                    args=(termStartTimestamp, termEndTimestamp, liquidity, tickLower, tickUpper,
-                                          variableTokenBalance, fixedTokenBalance, True),
-                                    axis=1)
+                                                                                                         args=(termStartTimestamp, termEndTimestamp, liquidity, tickLower, tickUpper,
+                                                                                                               variableTokenBalance, fixedTokenBalance, True),
+                                                                                                         axis=1)
 
         df.loc[:, f'mr_im_lp_{token}_{fixedTokenBalance}_{variableTokenBalance}_{liquidity}'] = df.apply(self.compute_margin_requirement_df_row_lp,
-                                    args=(termStartTimestamp, termEndTimestamp, liquidity, tickLower, tickUpper,
-                                          variableTokenBalance, fixedTokenBalance, False),
-                                    axis=1)
+                                                                                                         args=(termStartTimestamp, termEndTimestamp, liquidity, tickLower, tickUpper,
+                                                                                                               variableTokenBalance, fixedTokenBalance, False),
+                                                                                                         axis=1)
 
         # todo: requirements towards term end timestamp seem to be suspiciously large
         return df
-
 
     def worstCaseVariableFactorAtMaturity(self, timeInSecondsFromStartToMaturity,
                                           isFT, isLM, lowerApyBound, upperApyBound):
@@ -204,14 +187,15 @@ class MarginCalculator:
 
         return variableFactor
 
-
     def _getMarginRequirement(self, fixedTokenBalance, variableTokenBalance, isLM, lowerApyBound, upperApyBound,
                               termStartTimestamp, termEndTimestamp, currentTimestamp):
         if (fixedTokenBalance >= 0) and (variableTokenBalance >= 0):
             return 0
 
         timeInSecondsFromStartToMaturity = termEndTimestamp - termStartTimestamp
-        exp1 = fixedTokenBalance * self.fixedFactor(True, termStartTimestamp, termEndTimestamp, currentTimestamp)
+        exp1 = fixedTokenBalance * \
+            self.fixedFactor(True, termStartTimestamp,
+                             termEndTimestamp, currentTimestamp)
 
         exp2 = variableTokenBalance * self.worstCaseVariableFactorAtMaturity(
             timeInSecondsFromStartToMaturity,
@@ -230,13 +214,14 @@ class MarginCalculator:
 
         return margin
 
-
     def calculateFixedTokenBalance(self, amountFixed, excessBalance, termStartTimestamp, termEndTimestamp,
                                    currentTimestamp):
-        fixedFactor = self.fixedFactor(True, termStartTimestamp, termEndTimestamp, currentTimestamp)
+        fixedFactor = self.fixedFactor(
+            True, termStartTimestamp, termEndTimestamp, currentTimestamp)
 
         return amountFixed - (excessBalance / fixedFactor)
 
+    # tested
     def fixedFactor(self, atMaturity, termStartTimestamp, termEndTimestamp, currentTimestamp):
 
         if (atMaturity or (currentTimestamp >= termEndTimestamp)):
@@ -250,6 +235,7 @@ class MarginCalculator:
 
         return fixedFactor
 
+    # tested
     def getExcessBalance(self, amountFixed, amountVariable, accruedVariableFactor, termStartTimestamp,
                          termEndTimestamp, currentTimestamp):
 
@@ -260,6 +246,7 @@ class MarginCalculator:
 
         return excessBalance
 
+    # tested
     def getFixedTokenBalance(self, amountFixed, amountVariable, accruedVariableFactor, termStartTimestamp,
                              termEndTimestamp, currentTimestamp):
 
@@ -285,17 +272,25 @@ class MarginCalculator:
                                                     termEndTimestamp, currentTimestamp, tMax, gamma,
                                                     isFTUnwind):
 
+        print(fixedRateStart)
         # calculate D
         upperD = fixedRateStart * startingFixedRateMultiplier
+        print("upperD", upperD)
 
         if upperD < fixedRateDeviationMin:
             upperD = fixedRateDeviationMin
 
+        print("upperD", upperD)
+
         # calcualte d
         scaledTime = (termEndTimestamp - currentTimestamp) / tMax
+        print("scaledTime", scaledTime)
         expInput = scaledTime * (-gamma)
+        print("expInput", expInput)
         oneMinusTimeFactor = 1 - math.exp(expInput)
+        print("oneMinusTimeFactor", oneMinusTimeFactor)
         d = upperD * oneMinusTimeFactor
+        print("d", d)
 
         if isFTUnwind:
             if fixedRateStart > d:
@@ -305,7 +300,13 @@ class MarginCalculator:
         else:
             fixedRateCF = fixedRateStart + d
 
+        print("fixedRateCF", fixedRateCF)
+
         fixedTokenDeltaUnbalanced = variableTokenDeltaAbsolute * fixedRateCF * 100
+
+        print("fixedTokenDeltaUnbalanced", fixedTokenDeltaUnbalanced)
+        print()
+        print("-----------------------------------------------------")
 
         return fixedTokenDeltaUnbalanced
 
@@ -383,68 +384,19 @@ class MarginCalculator:
 
         return margin
 
-
-    def _getAmount0Delta(self, sqrtRatioA, sqrtRatioB, liquidity):
-
-        if sqrtRatioA > sqrtRatioB:
-            sqrtRatioA, sqrtRatioB = sqrtRatioB, sqrtRatioA
-
-        numerator = sqrtRatioB - sqrtRatioA
-        denominator = sqrtRatioB * sqrtRatioA
-
-        result = liquidity * (numerator / denominator) # without rounding up
-
-        return result
-
-
-    def getAmount0Delta(self, sqrtRatioA, sqrtRatioB, liquidity):
-
-        if liquidity < 0:
-            return -self._getAmount0Delta(sqrtRatioA, sqrtRatioB, -liquidity)
-        else:
-            return self._getAmount0Delta(sqrtRatioA, sqrtRatioB, liquidity)
-
-
-    def _getAmount1Delta(self, sqrtRatioA, sqrtRatioB, liquidity):
-
-        if sqrtRatioA > sqrtRatioB:
-            sqrtRatioA, sqrtRatioB = sqrtRatioB, sqrtRatioA
-
-        return liquidity * (sqrtRatioB - sqrtRatioA)
-
-
-    def getAmount1Delta(self, sqrtRatioA, sqrtRatioB, liquidity):
-
-        if liquidity < 0:
-            return -self._getAmount1Delta(sqrtRatioA, sqrtRatioB, -liquidity)
-        else:
-            return self._getAmount1Delta(sqrtRatioA, sqrtRatioB, liquidity)
-
-
-    def getSqrtRatioAtTick(self, tick):
-        # sqrt(1.0001 ^ tick)
-        return math.sqrt(pow(1.0001, tick))
-  
-    # Get the liquidity from the notional and prices:
-    # Liquidity = Notional / (sqrt(upper) - sqrt(lower))
-    def notional_to_liquidity(self, notional=1000, tick_l=5000, tick_u=6000):
-        sqrt_upper = self.getSqrtRatioAtTick(tick=tick_u)
-        sqrt_lower = self.getSqrtRatioAtTick(tick=tick_l)
-        return notional/(sqrt_upper - sqrt_lower)
-
     def getExtraBalances(self, fromTick, toTick, liquidity, variableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp):
 
         assert(liquidity >= 0)
 
-        fromTickSqrtRatio = self.getSqrtRatioAtTick(fromTick)
-        toTickSqrtRatio = self.getSqrtRatioAtTick(toTick)
+        fromTickSqrtRatio = getSqrtRatioAtTick(fromTick)
+        toTickSqrtRatio = getSqrtRatioAtTick(toTick)
 
         amount0Liquidity = liquidity
 
         if fromTick < toTick:
             amount0Liquidity = -amount0Liquidity
 
-        amount0 = self.getAmount0Delta(
+        amount0 = getAmount0Delta(
             fromTickSqrtRatio,
             toTickSqrtRatio,
             amount0Liquidity
@@ -455,7 +407,7 @@ class MarginCalculator:
         if fromTick >= toTick:
             amount1Liquidity = -amount1Liquidity
 
-        amount1 = self.getAmount1Delta(
+        amount1 = getAmount1Delta(
             fromTickSqrtRatio,
             toTickSqrtRatio,
             amount1Liquidity
@@ -471,13 +423,6 @@ class MarginCalculator:
         )
 
         return extraFixedTokenBalance, amount1
-
-
-    def sqrtPriceToFixedRate(self, sqrtPrice):
-
-        # the fixed rate is in percentage points, i.e. result of 1 refers to a 1% fixed rate
-
-        return 1 / (sqrtPrice ** 2)
 
     def getMarginRequirement(self, fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
@@ -497,7 +442,7 @@ class MarginCalculator:
         # create a conversion function for sqrt price to fixed rate
         # calculate minimum, proceed (ref https://github.com/Voltz-Protocol/voltz-core/blob/cc9d45193ef658df9dd79c6940959128b44e7154/contracts/MarginEngine.sol#L1136)
 
-        fixedRate = self.sqrtPriceToFixedRate(sqrtPrice)
+        fixedRate = sqrtPriceToFixedRate(sqrtPrice)
 
         minimumMarginRequirement = self.getMinimumMarginRequirement(
             fixedTokenBalance=fixedTokenBalance,
@@ -518,8 +463,8 @@ class MarginCalculator:
         return margin
 
     def getPositionMarginRequirement(self, variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
-                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
-                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound):
+                                     termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
+                                     positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound):
 
         if positionLiquidity > 0:
 
@@ -536,7 +481,7 @@ class MarginCalculator:
 
             # fromTick, toTick, liquidity, variableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp
 
-            extraFixedTokenBalance, extraVariableTokenBalance = 0,0
+            extraFixedTokenBalance, extraVariableTokenBalance = 0, 0
 
             if currentTick < tickUpper:
                 extraFixedTokenBalance, extraVariableTokenBalance = self.getExtraBalances(
@@ -549,7 +494,8 @@ class MarginCalculator:
                     currentTimestamp=currentTimestamp
                 )
 
-            scenario1LPVariableTokenBalance = positionVariableTokenBalance + extraVariableTokenBalance
+            scenario1LPVariableTokenBalance = positionVariableTokenBalance + \
+                extraVariableTokenBalance
             scenario1LPFixedTokenBalance = positionFixedTokenBalance + extraFixedTokenBalance
 
             if currentTick > tickLower:
@@ -563,14 +509,15 @@ class MarginCalculator:
                     currentTimestamp=currentTimestamp
                 )
             else:
-                extraFixedTokenBalance, extraVariableTokenBalance = 0,0
+                extraFixedTokenBalance, extraVariableTokenBalance = 0, 0
 
-            scenario2LPVariableTokenBalance = positionVariableTokenBalance + extraVariableTokenBalance
+            scenario2LPVariableTokenBalance = positionVariableTokenBalance + \
+                extraVariableTokenBalance
             scenario2LPFixedTokenBalance = positionFixedTokenBalance + extraFixedTokenBalance
 
-            lowPrice = self.getSqrtRatioAtTick(tickLower)
-            highPrice = self.getSqrtRatioAtTick(tickUpper)
-            
+            lowPrice = getSqrtRatioAtTick(tickLower)
+            highPrice = getSqrtRatioAtTick(tickUpper)
+
             if sqrtPrice < lowPrice:
                 lowPrice = sqrtPrice
 

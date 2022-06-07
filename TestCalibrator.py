@@ -48,7 +48,7 @@ class TestCalibrator(unittest.TestCase):
                         "disc_drift_optimum": 0.9444963455200194
                     }
         }
-        for key, value in expected.items()
+        for key, value in expected.items():
             for key_, value_ in expected[key].items():
                 self.assertAlmostEqual(RESIDUAL_MIN[key][key_], value_) # Almost equal due to differences when running the minimiser
 

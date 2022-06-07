@@ -9,6 +9,7 @@ import optuna
 import numpy as np
 # Positions -- want to disentangle positions from parameters
 from position_dict import position
+from utils.utils import fixedRateToTick, notional_to_liquidity
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
@@ -128,7 +129,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
             
             # Get the relevant ticks from the rates
             # Remember: higher fixed rate => lower tick, from the geometry of the vAMM
-            upper, lower = tmc.marginCalculator.fixedRateToTick(rate_range[0]), tmc.marginCalculator.fixedRateToTick(rate_range[1])
+            upper, lower = fixedRateToTick(rate_range[0]), fixedRateToTick(rate_range[1])
             
             # The different APY bounds are automatically passed to the TMC for different tokens
             # We need to update the simulated APY model passed to the TMC in each bound
@@ -145,7 +146,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
                         
                         # Now run the initial methods in the PortfolioCalculator to generate the LP PnL and the associated trader fees
                         tpc.portfolioCalculator.df_protocol = df_apy_mc
-                        tpc.portfolioCalculator.liquidity = tmc.marginCalculator.notional_to_liquidity(notional=pos["notional"], \
+                        tpc.portfolioCalculator.liquidity = notional_to_liquidity(notional=pos["notional"], \
                             tick_l=lower, tick_u=upper)
 
                         # Reset the PortfolioCalculator with the new FT and VT positions (these change in each fixed rate market, which can
