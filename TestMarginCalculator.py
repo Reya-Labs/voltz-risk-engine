@@ -310,7 +310,7 @@ class TestMarginCalculator(unittest.TestCase):
                         token=f'{token}'
                     )
 
-            df = self.df.rename(
+            df = df.rename(
                 columns = {
                     'apy': f'apy_{token}',
                     'lower': f'lower_{token}',
@@ -325,7 +325,6 @@ class TestMarginCalculator(unittest.TestCase):
             df = df.set_index(
                 'date'
             )
-
             dfs_per_token.append(df)
         result = pd.concat(dfs_per_token, axis=1)
         result["t_years"] = [(i-result.index.values[0])/SECONDS_IN_YEAR for i in result.index.values] # Add t_year for downstream APY calculation
