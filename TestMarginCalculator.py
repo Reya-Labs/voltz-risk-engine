@@ -1,9 +1,8 @@
-import math
 import unittest
 from MarginCalculator import MarginCalculator
 import pandas as pd
 import numpy as np
-from utils.utils import SECONDS_IN_WEEK, SECONDS_IN_YEAR, fixedRateToSqrtPrice, fixedRateToTick, notional_to_liquidity
+from utils.utils import SECONDS_IN_WEEK, SECONDS_IN_YEAR, fixedRateToTick, notional_to_liquidity
 
 APY_UPPER_MULTIPLIER = 1.5
 APY_LOWER_MULTIPLIER = 0.7

@@ -302,7 +302,7 @@ class MarginCalculator:
 
         print("fixedRateCF", fixedRateCF)
 
-        fixedTokenDeltaUnbalanced = variableTokenDeltaAbsolute * fixedRateCF * 100
+        fixedTokenDeltaUnbalanced = variableTokenDeltaAbsolute * fixedRateCF
 
         print("fixedTokenDeltaUnbalanced", fixedTokenDeltaUnbalanced)
         print()
