@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 bashtage/arch: Release 4.18 (Version v4.18). Zenodo. https://doi.org/10.5281/zenodo.593254
 pip3 install arch --user
 """
-from arch.bootstrap import CircularBlockBootstrap
+from arch.bootstrap import CircularBlockBootstrap, optimal_block_length
 
 """
     RiskMetrics object is instantiated with a given notional, and corresonding time series
@@ -14,12 +14,20 @@ from arch.bootstrap import CircularBlockBootstrap
 """
 class RiskMetrics():
     
-    def __init__(self, df, notional, liquidation_series, margin_series, pnl_series, liquidation=None, insolvency=None):
+    def __init__(self, df, notional, liquidation_series, margin_series, pnl_series, \
+                    liquidation=None, insolvency=None, pool_size=None):
         self.z_scores = {
             95: 1.96,
             99: 2.58
         }
-        self.df = df
+        
+        if pool_size is None:
+            self.pool_size = len(df)
+            self.df = df
+        else:
+            self.pool_size = pool_size
+            self.df = df.iloc[:pool_size]
+        
         self.notional = notional
         self.liquidation_series = df[liquidation_series]
         self.margin_series = df[margin_series]
@@ -35,9 +43,12 @@ class RiskMetrics():
         else:
             self.insolvency = insolvency
 
+
     """
         Liquidation time series, from input margin and 
         liquidation requirements time series
+
+        Tends to liquidation as the value -> 0
     """
     def liquidation(self):
         return (self.margin_series.iloc[0] - self.liquidation_series) / self.liquidation_series
@@ -45,6 +56,8 @@ class RiskMetrics():
     """
         Insolvency time series, from input margin and 
         actor PnL time series
+
+        Tends to insolvency as value < 0
     """
     def insolvency(self):
         return (self.pnl_series + self.margin_series.iloc[0]) / self.margin_series.iloc[0]
@@ -54,14 +67,19 @@ class RiskMetrics():
         number of replicates. Assumes the autocorrelation structure of the
         time series is over some horizon given by time_delta 
     """
-    def generate_replicates(self, N_replicates=100, time_delta=10):
+    def generate_replicates(self, N_replicates=100):
         rs = np.random.RandomState(42)
 
         self.liquidation.dropna(inplace=True)
         self.insolvency.dropna(inplace=True)
 
-        l_bs = CircularBlockBootstrap(block_size=time_delta, x=self.liquidation, random_state=rs)
-        i_bs = CircularBlockBootstrap(block_size=time_delta, x=self.insolvency, random_state=rs)
+        # Optimal block lengths    
+        time_delta_l = optimal_block_length(self.liquidation)["circular"].values[0]
+        time_delta_i = optimal_block_length(self.insolvency)["circular"].values[0]
+
+        # Block bootstrapping
+        l_bs = CircularBlockBootstrap(block_size=time_delta_l, x=self.liquidation, random_state=rs)
+        i_bs = CircularBlockBootstrap(block_size=time_delta_i, x=self.insolvency, random_state=rs)
         l_rep = [data[1]["x"].reset_index().drop(columns=["index"]).values.flatten() for data in l_bs.bootstrap(N_replicates)]
         i_rep = [data[1]["x"].reset_index().drop(columns=["index"]).values.flatten() for data in i_bs.bootstrap(N_replicates)]
 
