@@ -114,8 +114,8 @@ class RiskMetrics():
         l_mu, i_mu = l_dist.mean(), i_dist.mean()
         l_sig, i_sig = l_dist.std(), i_dist.std()
 
-        l_var = z_score*l_sig + l_mu 
-        i_var = z_score*i_sig + i_mu
+        l_var = -z_score*l_sig + l_mu 
+        i_var = -z_score*i_sig + i_mu
 
         return l_var, i_var 
 
