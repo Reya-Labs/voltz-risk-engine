@@ -105,11 +105,11 @@ class RiskMetrics():
         from the replicate distributions, for a given time-horizon and Z-score (based on
         singificance level, alpha)
     """
-    def lvar_and_ivar(self, alpha=95, time_horizon=5, l_rep=None, i_rep=None):
+    def lvar_and_ivar(self, alpha=95, l_rep=None, i_rep=None):
         z_score = self.z_scores[alpha]
         if (l_rep is None) or (i_rep is None):
             l_rep, i_rep = self.generate_replicates()
-        l_dist, i_dist = l_rep[:][time_horizon], i_rep[:][time_horizon]
+        l_dist, i_dist = np.array([l.mean() for l in l_rep]), np.array([i.mean() for i in i_rep]) # CLT => Gaussian
 
         l_mu, i_mu = l_dist.mean(), i_dist.mean()
         l_sig, i_sig = l_dist.std(), i_dist.std()
@@ -122,9 +122,9 @@ class RiskMetrics():
     """
         Convert VaRs to corresponding leverage constraints
     """
-    def leverages(self, l_var=None, i_var=None, time_horizon=5):
+    def leverages(self, l_var=None, i_var=None, time_horizon=0):
         if (l_var is None) or (i_var is None):
-            l_var, i_var = self.lvar_and_ivar(time_horizon=time_horizon)
+            l_var, i_var = self.lvar_and_ivar()
         
         l_lev = self.notional / (self.liquidation_series.iloc[time_horizon]*l_var + self.liquidation_series.iloc[time_horizon])
         i_lev = self.notional / (self.margin_series.iloc[0]*i_var - self.margin_series.iloc[0])
@@ -134,7 +134,7 @@ class RiskMetrics():
         Commpute the recommended leverage based on 
         Leverage = min(Lev_L, Lev_I), from the liquidation and insolvency leverages
     """
-    def recommended_leverage(self, time_horizon=5):
+    def recommended_leverage(self, time_horizon=0):
         l_lev, i_lev = self.leverages(time_horizon=time_horizon)
         if l_lev < i_lev:
             return l_lev 
