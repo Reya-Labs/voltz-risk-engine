@@ -16,7 +16,6 @@
 """
 
 import math
-from tkinter import W
 import numpy as np
 from MarginCalculator import SECONDS_IN_YEAR
 from RiskMetrics import RiskMetrics

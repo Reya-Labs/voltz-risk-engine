@@ -167,3 +167,141 @@ def calculate_liquidity_index(df):
 
     return df
 
+
+def compute_minimum_margin_requirement_df_row(marginCalculator, row, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance, isLM):
+
+        minimum_margin_requirement = marginCalculator.getMinimumMarginRequirement(
+            fixedTokenBalance=fixedTokenBalance,
+            variableTokenBalance=variableTokenBalance,
+            isLM=isLM,
+            fixedRate=row['fr'],
+            currentTimestamp=row['date'],
+            accruedVariableFactor=row['variable factor'],
+            lowerApyBound=row['lower'],
+            upperApyBound=row['upper'],
+            termStartTimestamp=termStartTimestamp,
+            termEndTimestamp=termEndTimestamp
+        )
+
+        return minimum_margin_requirement
+
+def compute_margin_requirement_df_row_trader(marginCalculator, row, termStartTimestamp, termEndTimestamp,
+                                                 fixedTokenBalance, variableTokenBalance, isLM):
+
+        marginRequirement = marginCalculator.getMarginRequirement(
+            fixedTokenBalance=fixedTokenBalance,
+            variableTokenBalance=variableTokenBalance,
+            isLM=isLM,
+            sqrtPrice=fixedRateToSqrtPrice(1),
+            lowerApyBound=row['lower'],
+            upperApyBound=row['upper'],
+            termStartTimestamp=termStartTimestamp,
+            termEndTimestamp=termEndTimestamp,
+            currentTimestamp=row['date'],
+            accruedVariableFactor=row['variable factor']
+        )
+
+        return marginRequirement
+
+def generate_pnl_trader(df, fixedFactorSeries, fixedTokenBalance, variableTokenBalance, trader_type, token):
+
+        if variableTokenBalance > 0:
+            df.loc[:, 'net factor'] = df.loc[:,
+                                             'variable factor'] - fixedFactorSeries
+        else:
+            df.loc[:, 'net factor'] = fixedFactorSeries - \
+                df.loc[:, 'variable factor']
+
+        df.loc[:, f'pnl_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = abs(
+            variableTokenBalance) * df.loc[:, 'net factor']
+
+        return df
+
+    # We may specifiy a specific leverage factor since the trader
+    # leverage = notional / margin deposited <= notional / initial margin requirement
+def generate_net_margin_trader(df, fixedTokenBalance, variableTokenBalance, trader_type, token, leverage_factor=1):
+
+        # column with the initial margin requirement
+        column_name = f'mr_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'
+        initial_margin_requirement_series = df.loc[:, column_name]
+        margin_deposited = initial_margin_requirement_series[0] * \
+            leverage_factor
+        pnl_column_name = f'pnl_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'
+        df.loc[:,
+               f"margin_deposited_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}"] = margin_deposited
+        df.loc[:, f"net_margin_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}"] = margin_deposited + \
+            df.loc[:, pnl_column_name]
+
+        return df
+
+def generate_margin_requirements_trader(marginCalculator, df, fixedTokenBalance, variableTokenBalance, trader_type, token):
+
+        # produce a time series of margin requirements
+        termStartTimestamp = df.loc[:, "date"].iloc[0]
+        termEndTimestamp = df.loc[:, "date"].iloc[-1]
+
+        df.loc[:, f'mmr_lm_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(compute_minimum_margin_requirement_df_row,
+                                                                                                         args=(marginCalculator, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
+                                                                                                               True),
+                                                                                                         axis=1)
+
+        df.loc[:, f'mmr_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(compute_minimum_margin_requirement_df_row,
+                                                                                                         args=(marginCalculator, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
+                                                                                                               False),
+                                                                                                         axis=1)
+
+        df.loc[:, f'mr_lm_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(compute_margin_requirement_df_row_trader,
+                                                                                                        args=(marginCalculator, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
+                                                                                                              True),
+                                                                                                        axis=1)
+
+        df.loc[:, f'mr_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(compute_margin_requirement_df_row_trader,
+                                                                                                        args=(marginCalculator, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
+                                                                                                              False),
+                                                                                                        axis=1)
+
+        return df
+
+def compute_margin_requirement_df_row_lp(marginCalculator, row, termStartTimestamp, termEndTimestamp,
+                                             positionLiquidity, tickLower, tickUpper, positionVariableTokenBalance,
+                                             positionFixedTokenBalance, isLM):
+
+        marginRequirement = marginCalculator.getPositionMarginRequirement(
+            variableFactor=0.000046626984126984,
+            currentTick=fixedRateToTick(1),
+            positionLiquidity=positionLiquidity,
+            tickLower=tickLower,
+            tickUpper=tickUpper,
+            sqrtPrice=fixedRateToSqrtPrice(1),
+            termStartTimestamp=termStartTimestamp,
+            termEndTimestamp=termEndTimestamp,
+            currentTimestamp=row['date'],
+            positionVariableTokenBalance=positionVariableTokenBalance,
+            positionFixedTokenBalance=positionFixedTokenBalance,
+            isLM=isLM,
+            lowerApyBound=row['lower'],
+            upperApyBound=row['upper']
+        )
+
+        return marginRequirement
+
+def generate_margin_requirements_lp(marginCalculator, df, token, fixedTokenBalance, variableTokenBalance, liquidity, tickLower, tickUpper):
+
+        # produce a time series of margin requirements
+        # assume the lp has zero fixed and variable tokens at the start, todo: extend to the case where that's not the case
+
+        termStartTimestamp = df.loc[:, "date"].iloc[0]
+        termEndTimestamp = df.loc[:, "date"].iloc[-1]
+
+        df.loc[:, f'mr_lm_lp_{token}_{fixedTokenBalance}_{variableTokenBalance}_{liquidity}'] = df.apply(compute_margin_requirement_df_row_lp,
+                                                                                                         args=(marginCalculator, termStartTimestamp, termEndTimestamp, liquidity, tickLower, tickUpper,
+                                                                                                               variableTokenBalance, fixedTokenBalance, True),
+                                                                                                         axis=1)
+
+        df.loc[:, f'mr_im_lp_{token}_{fixedTokenBalance}_{variableTokenBalance}_{liquidity}'] = df.apply(compute_margin_requirement_df_row_lp,
+                                                                                                         args=(marginCalculator, termStartTimestamp, termEndTimestamp, liquidity, tickLower, tickUpper,
+                                                                                                               variableTokenBalance, fixedTokenBalance, False),
+                                                                                                         axis=1)
+
+        # todo: requirements towards term end timestamp seem to be suspiciously large
+        return df
