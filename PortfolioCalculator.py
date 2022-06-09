@@ -360,9 +360,9 @@ class PortfolioCalculator:
         l_vars = {}
         i_vars = {}
         notional_liquidity = self.liquidity_to_notional(tickUpper, tickLower)
-        notional_ft = np.abs(float(self.positions[token]["ftPosInit"].split("_")[1])) if self.positions!={} else np.abs(float(self.ftPosInit[1]))
-        notional_vt = np.abs(float(self.positions[token]["vtPosInit"].split("_")[1])) if self.positions!={} else np.abs(float(self.vtPosInit[1]))
         for token in self.tokens:
+            notional_ft = np.abs(float(self.positions[token]["ftPosInit"].split("_")[1])) if self.positions!={} else np.abs(float(self.ftPosInit[1]))
+            notional_vt = np.abs(float(self.positions[token]["vtPosInit"].split("_")[1])) if self.positions!={} else np.abs(float(self.vtPosInit[1]))
             risk_FT, risk_VT = None, None
             risk_LP = RiskMetrics(df=self.df_protocol, notional=notional_liquidity, \
                 liquidation_series=f"mr_lm_lp_{token}_{self.lpPosInit}_{self.liquidity}", \
