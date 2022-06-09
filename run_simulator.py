@@ -1,7 +1,7 @@
 import pandas as pd
 from MarginCalculator import MarginCalculator
+from PortfolioCalculator import PortfolioCalculator
 from Simulator import Simulator
-from TestPortfolioCalculator import TestPortfolioCalculator
 import json
 import os
 import optuna
@@ -97,17 +97,21 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # # # 3. Instantiate the PortfolioCalculator through its TestPortfolioCalculator class  # # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    tpc = TestPortfolioCalculator()
-    tpc.setUp()
-    # Fee structure "tuneable" parameters 
-    tpc.portfolioCalculator.lambdaFee = lambda_fee
-    tpc.portfolioCalculator.gammaFee = gamma_fee
-    tpc.portfolioCalculator.tokens = pos["tokens"] 
-    tpc.portfolioCalculator.lpPosInit = f"{pos['lp_fix']}_{pos['lp_var']}"
-    tpc.portfolioCalculator.tPool = (pos["pool_size"]/365)*SECONDS_IN_YEAR
-    tpc.portfolioCalculator.notional = pos["notional"]
-    tpc.portfolioCalculator.proportion_traded_per_day = 0.20 # Assumption in the modelling, inspired by UniSwap
-
+    
+    pc = PortfolioCalculator(
+            df_protocol=None,
+            lambdaFee=lambda_fee,
+            gammaFee=gamma_fee,
+            tokens=pos["tokens"],
+            liquidity=1000,
+            balances=None,
+            tPool=(pos["pool_size"]/365)*SECONDS_IN_YEAR,
+            lpPosInit=(pos['lp_fix'], pos['lp_var']),
+            ftPosInit=(1000,-1000), # FT positions
+            vtPosInit=(-1000,1000), # VT positions
+            notional=1000, # Absolute value of the variable token balance of a trader (both ft and vt are assumed to have the same)
+            proportion_traded_per_day=0.20 # Assumption in the modelling, inspired by UniSwap
+        )
 
     # Define the relevant marker cases to loop over and construct different APY and IRS pool
     # scenarios
@@ -142,29 +146,29 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
             for market in fr_markets:
                 for lev in leverage_factors:
                     for fee in gamma_fees:
-                        tpc.portfolioCalculator.gammaFee = fee # Reset the fee
+                        pc.gammaFee = fee # Reset the fee
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"] = {}
                         
                         df_apy_mc, balances = mc.generate_full_output(df_apy=df_apy, date_original=df.index, tokens=pos["tokens"], notional=pos["notional"], lp_fix=pos["lp_fix"], \
                             lp_var=pos["lp_var"], tick_l=lower, tick_u=upper, fr_market=market, leverage_factor=lev)
                         
                         # Now run the initial methods in the PortfolioCalculator to generate the LP PnL and the associated trader fees
-                        tpc.portfolioCalculator.df_protocol = df_apy_mc
-                        tpc.portfolioCalculator.liquidity = notional_to_liquidity(notional=pos["notional"], \
+                        pc.df_protocol = df_apy_mc
+                        pc.liquidity = notional_to_liquidity(notional=pos["notional"], \
                             tick_l=lower, tick_u=upper)
 
 
                         # Reset the PortfolioCalculator with the new FT and VT positions (these change in each fixed rate market, which can
                         # now also change with the token)
-                        tpc.portfolioCalculator.set_positions(balances)
+                        pc.set_positions(balances)
                         
                         # Start by generating the new LP PnL and net margins (n.b. check the notional assignment is correct)
-                        tpc.test_generate_lp_pnl_and_net_margin(tick_l=lower, tick_u=upper, lp_leverage_factor=lev)
+                        pc.generate_lp_pnl_and_net_margin(tick_l=lower, tick_u=upper, lp_leverage_factor=lev)
                         
                         # Now compute the protocol collected fees, the associated Sharpe ratios, and the fraction of
                         # undercollateralised events
-                        #sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars = tpc.test_sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
-                        sharpes, undercols, l_factors, levs, the_apys = tpc.test_sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
+                        #sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars = pc.sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
+                        sharpes, undercols, l_factors, levs, the_apys = pc.sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["SRs"] = sharpes
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Frac Us"] = undercols
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Liq. fact."] = l_factors
