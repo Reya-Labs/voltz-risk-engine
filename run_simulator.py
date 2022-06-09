@@ -157,15 +157,18 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
                         
                         # Now compute the protocol collected fees, the associated Sharpe ratios, and the fraction of
                         # undercollateralised events
-                        sharpes, undercols, l_factors, levs, the_apys = tpc.test_sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
+                        sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars = tpc.test_sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["SRs"] = sharpes
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Frac Us"] = undercols
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Liq. fact."] = l_factors
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Leverage"] = levs
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["APYs"] = the_apys
+                        summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["LVaRs"] = l_vars
+                        summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["IVaRs"] = i_vars
                         fee_collector.append(df_apy_mc["protocol_fee"].mean()) 
                         df_apy_mc.to_csv(sim_dir+out_name+f"_F_value_{f}_{market}_{tick_name}_{fee}_full_risk_engine_output.csv")
-    
+
+                           
     # Save summary_dict to json here
     with open(sim_dir+f"summary_simulations_{out_name}.json", "w") as fp:
         json.dump(summary_dict, fp, indent=4)
@@ -187,35 +190,52 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     flatLiq = np.array([mp.dict_to_df(summary_dict, "Liq. fact. VT", "Liq. fact.").stack().values, mp.dict_to_df(summary_dict, "Liq. fact. FT", "Liq. fact.").stack().values, \
         mp.dict_to_df(summary_dict, "Liq. fact. LP", "Liq. fact.").stack().values]).flatten()
     
-    # Trader and LP leverages are treated separely in the optimiser regularisation
-    flatLev_Trader = np.array([mp.dict_to_df(summary_dict, "Leverage VT", "Leverage").stack().values, \
-        mp.dict_to_df(summary_dict, "Leverage FT", "Leverage").stack().values]).flatten()
-    flatLev_LP = mp.dict_to_df(summary_dict, "Leverage LP", "Leverage").stack().values.flatten()
+    
+    # Get the different actor leverages to use directly in the optimisation
+    flatLev = np.array([mp.dict_to_df(summary_dict, "Leverage VT", "Leverage").stack().values, \
+                        mp.dict_to_df(summary_dict, "Leverage FT", "Leverage").stack().values, \
+                        mp.dict_to_df(summary_dict, "Leverage LP", "Leverage").stack().values]).flatten()
     
     # Normalise and get the means
     meanSR = normalise(flatSR).mean()   
     meanU = 0 if np.all(flatU==0) else normalise(flatU).mean() 
     meanLiq = 0 if np.all(flatLiq==0) else normalise(flatLiq).mean() 
     meanFee =  np.array(fee_collector).mean() 
-    meanLev_Trader = flatLev_Trader.mean() # Use this for regularisation: if above 50x, heavily penalise the loss function 
-    meanLev_LP = flatLev_LP.mean() # Use this for regularisation: favour configurations where LPs can have decent leverage   
+    meanLev = normalise(flatLev).mean() 
     
+    # Pick up the VaRs for regularisation (in their natural units)
+    meanLVaR_LP = np.array(mp.dict_to_df(summary_dict, "LVaR LP", "LVaRs").stack().values).flatten().mean()
+    meanIVaR_LP = np.array(mp.dict_to_df(summary_dict, "IVaR LP", "IVaRs").stack().values).flatten().mean()
+    
+    meanLVaR_FT = np.array(mp.dict_to_df(summary_dict, "LVaR FT", "LVaRs").stack().values).flatten().mean()
+    meanIVaR_FT = np.array(mp.dict_to_df(summary_dict, "IVaR FT", "IVaRs").stack().values).flatten().mean()
+    
+    meanLVaR_VT = np.array(mp.dict_to_df(summary_dict, "LVaR VT", "LVaRs").stack().values).flatten().mean()
+    meanIVaR_VT = np.array(mp.dict_to_df(summary_dict, "IVaR VT", "IVaRs").stack().values).flatten().mean()
+
     if debug:
         print("flatSR: ", flatSR)
         print("flatU: ", flatU)
         print("flatLiq: ", flatLiq)
-        print("flatLev_Trader: ", flatLev_Trader)
-        print("flatLev_LP: ", flatLev_LP)
+        print("flatLev: ", flatLev)
         print("meanSR: ", meanSR)
         print("meanFee: ", meanFee)
         print("meanU: ", meanU)
         print("meanLiq: ", meanLiq)
-        print("meanLev_Trader: ", meanLev_Trader)
-        print("meanLev_LP: ", meanLev_LP)
+        print("meanLev: ", meanLev)
+        print("meanLVaR_LP", meanLVaR_LP)
+        print("meanLVaR_FT", meanLVaR_FT)
+        print("meanLVaR_VT", meanLVaR_VT)
+        print("meanIVaR_LP", meanIVaR_LP)
+        print("meanIVaR_FT", meanIVaR_FT)
+        print("meanIVaR_VT", meanIVaR_VT)
     
     if RUN_OPTUNA:
-        #obj = (meanSR + meanFee) - (meanU + meanLiq) - 10*int(meanLev > 100) # Maximise this -- uses Sharpe ratio 
-        obj = -(meanU + meanLiq) - 10*int(meanLev_Trader > 100) - 10*int(meanLev_LP < 10) # Maximise this -- designed for liquidations
+        # Maximise this -- use the VaRs for regularisation
+        l_var_lim, i_var_lim = 0.3, 0.3
+        obj = meanLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
+            - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
+            - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) 
         return obj
 
 def run_with_a_single_set_of_params(parser):

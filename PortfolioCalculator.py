@@ -19,6 +19,7 @@ import math
 from tkinter import W
 import numpy as np
 from MarginCalculator import SECONDS_IN_YEAR
+from RiskMetrics import RiskMetrics
 
 class PortfolioCalculator:
     def __init__(self, df_protocol, lambdaFee, gammaFee, notional=1000, proportion_traded_per_day=0.15, \
@@ -354,3 +355,48 @@ class PortfolioCalculator:
             levs[f"Leverage LP: {token}"] = levLP
 
         return levs
+
+    # Compute the LVaR and IVaR using the RiskMetrics class
+    def computeVaRs(self, tickUpper, tickLower):
+        l_vars = {}
+        i_vars = {}
+        notional_liquidity = self.liquidity_to_notional(tickUpper, tickLower)
+        notional_ft = np.abs(float(self.positions[token]["ftPosInit"].split("_")[1])) if self.positions!={} else np.abs(float(self.ftPosInit[1]))
+        notional_vt = np.abs(float(self.positions[token]["vtPosInit"].split("_")[1])) if self.positions!={} else np.abs(float(self.vtPosInit[1]))
+        for token in self.tokens:
+            risk_FT, risk_VT = None, None
+            risk_LP = RiskMetrics(df=self.df_protocol, notional=notional_liquidity, \
+                liquidation_series=f"mr_lm_lp_{token}_{self.lpPosInit}_{self.liquidity}", \
+                    margin_series=f"mr_im_lp_{token}_{self.lpPosInit}_{self.liquidity}", pnl_series="lp_pnl")
+            
+            if self.positions != {}:
+                risk_FT = RiskMetrics(df=self.df_protocol, notional=notional_ft, \
+                    liquidation_series=f"mr_lm_ft_{token}_{self.positions[token]['ftPosInit']}", \
+                        margin_series=f"mr_im_ft_{token}_{self.positions[token]['ftPosInit']}", \
+                            pnl_series=f"pnl_ft_{token}_{self.positions[token]['ftPosInit']}")
+                risk_VT = RiskMetrics(df=self.df_protocol, notional=notional_vt, \
+                    liquidation_series=f"mr_lm_vt_{token}_{self.positions[token]['vtPosInit']}", \
+                        margin_series=f"mr_im_vt_{token}_{self.positions[token]['vtPosInit']}", \
+                            pnl_series=f"pnl_vt_{token}_{self.positions[token]['vtPosInit']}")
+            else:
+                risk_FT = RiskMetrics(df=self.df_protocol, notional=notional_ft, \
+                    liquidation_series=f"mr_lm_ft_{token}_{self.ftPosInit}", \
+                        margin_series=f"mr_im_ft_{token}_{self.ftPosInit}", pnl_series=f"pnl_ft_{token}_{self.ftPosInit}")
+                risk_VT = RiskMetrics(df=self.df_protocol, notional=notional_vt, \
+                    liquidation_series=f"mr_lm_vt_{token}_{self.vtPosInit}", \
+                        margin_series=f"mr_im_vt_{token}_{self.vtPosInit}", pnl_series=f"pnl_vt_{token}_{self.vtPosInit}")
+            
+            l_rep_lp, i_rep_lp = risk_LP.generate_replicates(N_replicates=100)
+            l_var_lp, i_var_lp = risk_LP.lvar_and_ivar(alpha=95, l_rep=l_rep_lp, i_rep=i_rep_lp)
+            
+            l_rep_ft, i_rep_ft = risk_LP.generate_replicates(N_replicates=100)
+            l_var_ft, i_var_ft = risk_FT.lvar_and_ivar(alpha=95, l_rep=l_rep_ft, i_rep=i_rep_ft)
+
+            l_rep_vt, i_rep_vt = risk_VT.generate_replicates(N_replicates=100)
+            l_var_vt, i_var_vt = risk_VT.lvar_and_ivar(alpha=95, l_rep=l_rep_vt, i_rep=i_rep_vt)
+
+            l_vars[f"LVaR FT: {token}"], i_vars[f"IVaR FT: {token}"] = l_var_ft, i_var_ft
+            l_vars[f"LVaR VT: {token}"], i_vars[f"IVaR VT: {token}"] = l_var_vt, i_var_vt
+            l_vars[f"LVaR LP: {token}"], i_vars[f"IVaR LP: {token}"] = l_var_lp, i_var_lp
+
+        return l_vars, i_vars

@@ -57,11 +57,12 @@ class TestPortfolioCalculator(unittest.TestCase):
         undercols = self.portfolioCalculator.fractionUndercolEvents() # Undercollateralisation calculation
         l_factors = self.portfolioCalculator.computeLiquidationFactor() # Liquidation calculation
         levs = self.portfolioCalculator.computeLeverage(tickLower=tick_l, tickUpper=tick_u) # Leverage calculation
-        the_apys = self.portfolioCalculator.returnAPYs()
+        the_apys = self.portfolioCalculator.returnAPYs() # APYs
+        l_vars, i_vars = self.portfolioCalculator.computeVaRs(tickLower=tick_l, tickUpper=tick_u) #LVaRs and IVaRs
 
         print("Completed Sharpe ratio and undercolateralisation calculations")
 
-        return sharpes, undercols, l_factors, levs, the_apys
+        return sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars
 
 if __name__ == '__main__':
     unittest.main()
