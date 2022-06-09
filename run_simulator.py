@@ -153,6 +153,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
                         tpc.portfolioCalculator.liquidity = notional_to_liquidity(notional=pos["notional"], \
                             tick_l=lower, tick_u=upper)
 
+
                         # Reset the PortfolioCalculator with the new FT and VT positions (these change in each fixed rate market, which can
                         # now also change with the token)
                         tpc.portfolioCalculator.set_positions(balances)
@@ -162,14 +163,15 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
                         
                         # Now compute the protocol collected fees, the associated Sharpe ratios, and the fraction of
                         # undercollateralised events
-                        sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars = tpc.test_sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
+                        #sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars = tpc.test_sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
+                        sharpes, undercols, l_factors, levs, the_apys = tpc.test_sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["SRs"] = sharpes
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Frac Us"] = undercols
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Liq. fact."] = l_factors
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Leverage"] = levs
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["APYs"] = the_apys
-                        summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["LVaRs"] = l_vars
-                        summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["IVaRs"] = i_vars
+                        #summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["LVaRs"] = l_vars
+                        #summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["IVaRs"] = i_vars
                         fee_collector.append(df_apy_mc["protocol_fee"].mean()) 
                         df_apy_mc.to_csv(sim_dir+out_name+f"_F_value_{f}_{market}_{tick_name}_{fee}_full_risk_engine_output.csv")
 
@@ -209,6 +211,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     meanLev = normalise(flatLev).mean() 
     
     # Pick up the VaRs for regularisation (in their natural units)
+    """
     meanLVaR_LP = np.array(mp.dict_to_df(summary_dict, "LVaR LP", "LVaRs").stack().values).flatten().mean()
     meanIVaR_LP = np.array(mp.dict_to_df(summary_dict, "IVaR LP", "IVaRs").stack().values).flatten().mean()
     
@@ -217,6 +220,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     
     meanLVaR_VT = np.array(mp.dict_to_df(summary_dict, "LVaR VT", "LVaRs").stack().values).flatten().mean()
     meanIVaR_VT = np.array(mp.dict_to_df(summary_dict, "IVaR VT", "IVaRs").stack().values).flatten().mean()
+    """
 
     if debug:
         print("flatSR: ", flatSR)
@@ -228,19 +232,20 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
         print("meanU: ", meanU)
         print("meanLiq: ", meanLiq)
         print("meanLev: ", meanLev)
-        print("meanLVaR_LP", meanLVaR_LP)
-        print("meanLVaR_FT", meanLVaR_FT)
-        print("meanLVaR_VT", meanLVaR_VT)
-        print("meanIVaR_LP", meanIVaR_LP)
-        print("meanIVaR_FT", meanIVaR_FT)
-        print("meanIVaR_VT", meanIVaR_VT)
+        #print("meanLVaR_LP", meanLVaR_LP)
+        #print("meanLVaR_FT", meanLVaR_FT)
+        #print("meanLVaR_VT", meanLVaR_VT)
+        #print("meanIVaR_LP", meanIVaR_LP)
+        #print("meanIVaR_FT", meanIVaR_FT)
+        #print("meanIVaR_VT", meanIVaR_VT)
     
     if RUN_OPTUNA:
+        obj = -(meanU + meanLiq) - 10*int(meanLev > 100) - 10*int(meanLev< 10)
         # Maximise this -- use the VaRs for regularisation
-        l_var_lim, i_var_lim = 0.3, 0.3
-        obj = meanLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
-            - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
-            - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) 
+        #l_var_lim, i_var_lim = 0.3, 0.3
+        #obj = meanLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
+        #    - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
+        #    - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) 
         return obj
 
 def run_with_a_single_set_of_params(parser):
