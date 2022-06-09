@@ -16,10 +16,9 @@
 """
 
 import math
-from tkinter import W
 import numpy as np
-from MarginCalculator import SECONDS_IN_YEAR
 from RiskMetrics import RiskMetrics
+from utils.utils import SECONDS_IN_YEAR
 
 class PortfolioCalculator:
     def __init__(self, df_protocol, lambdaFee, gammaFee, notional=1000, proportion_traded_per_day=0.15, \
@@ -91,8 +90,6 @@ class PortfolioCalculator:
         return self.liquidity * (sqrtRatioB - sqrtRatioA)
 
     def generateLPNetMargin(self, lp_leverage_factor=1):
-
-        print("lpPosInit:", self.lpPosInit)
 
         for token in self.tokens:        
             column_name = f'mr_im_lp_{token}_{self.lpPosInit}_{self.liquidity}'

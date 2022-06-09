@@ -1,7 +1,5 @@
 import unittest
-from zlib import Z_BEST_COMPRESSION
 import pandas as pd
-import numpy as np
 from Simulator import Simulator
 from TestMarginCalculator import XI_LOWER, XI_UPPER
 

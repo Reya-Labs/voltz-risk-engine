@@ -1,6 +1,4 @@
-import pandas as pd
 import numpy as np
-from matplotlib import pyplot as plt
 
 """
     The Calibrator class performs CIR calibration of the APY data for a given protocol

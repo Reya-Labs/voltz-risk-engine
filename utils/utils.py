@@ -192,7 +192,7 @@ def compute_margin_requirement_df_row_trader(row, marginCalculator, termStartTim
             fixedTokenBalance=fixedTokenBalance,
             variableTokenBalance=variableTokenBalance,
             isLM=isLM,
-            sqrtPrice=fixedRateToSqrtPrice(1),
+            sqrtPrice=fixedRateToSqrtPrice(row['fr'] * 100),
             lowerApyBound=row['lower'],
             upperApyBound=row['upper'],
             termStartTimestamp=termStartTimestamp,
@@ -267,12 +267,12 @@ def compute_margin_requirement_df_row_lp(row, marginCalculator, termStartTimesta
                                              positionFixedTokenBalance, isLM):
 
         marginRequirement = marginCalculator.getPositionMarginRequirement(
-            variableFactor=0.000046626984126984,
-            currentTick=fixedRateToTick(1),
+            variableFactor=0,
+            currentTick=fixedRateToTick(row['fr'] * 100),
             positionLiquidity=positionLiquidity,
             tickLower=tickLower,
             tickUpper=tickUpper,
-            sqrtPrice=fixedRateToSqrtPrice(1),
+            sqrtPrice=fixedRateToSqrtPrice(row['fr'] * 100),
             termStartTimestamp=termStartTimestamp,
             termEndTimestamp=termEndTimestamp,
             currentTimestamp=row['date'],

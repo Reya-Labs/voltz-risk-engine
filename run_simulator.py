@@ -58,9 +58,8 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
 
     # We want to now vary the calibration params, a and b, after the sigma has been calulated so that the market
     # factor we apply to sigma is independent of the variation in a and b
-    b_values = {k: 1 for k, v in b_values.items()}
-    a_values = {k: 0.2 for k, v in a_values.items()}
-    sigma_values = {k: 0.01 for k, v in sigma_values.items()}
+    b_values = {k: v*b_factor for k, v in b_values.items()}
+    a_values = {k: v*a_factor for k, v in a_values.items()}
 
     # Reset the Simulator with these updated outputs from the Calibrator
     sim.set_a_values(a_values=a_values)

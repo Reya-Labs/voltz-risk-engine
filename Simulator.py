@@ -1,8 +1,6 @@
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from Calibrator import Calibrator # Parent class
-from MarginCalculator import SECONDS_IN_YEAR
+from Calibrator import Calibrator
+from utils.utils import SECONDS_IN_DAY, SECONDS_IN_YEAR
 
 """
     Simulator class inherits from Calibrator. It makes a calibrated object as input, with the
@@ -19,7 +17,7 @@ from MarginCalculator import SECONDS_IN_YEAR
     sigma scalings F -- this part of the calculation follows directly from litepaper, computing the closed-form
     solution for the APY bounds assuming a fixed volatility and CIR calibration. 
 """
-SECONDS_IN_DAY = SECONDS_IN_YEAR/365
+
 class Simulator(Calibrator):
     def __init__(self, df_protocol, a_values_dict=None, b_values_dict=None, sigma_dict=None, tMax=SECONDS_IN_YEAR):
         super().__init__(df_protocol)
@@ -66,7 +64,7 @@ class Simulator(Calibrator):
         for token in tokens:
             a, b, sigma = self.a_values_dict[token], self.b_values_dict[token], self.sigma_dict[token]*F
             apy_i = df_deep_copy[token].values[0]
-            apy_model = [0.0162]
+            apy_model = [apy_i]
             for i in range(1, len(df_deep_copy)):
                 dapy = a*(b-apy_i)*dt + sigma * np.sqrt(apy_i) * np.random.normal(0,1,1)[0] * np.sqrt(dt) # Need a random seed for this
                 apy_i += dapy
@@ -75,7 +73,7 @@ class Simulator(Calibrator):
                 if apy_i <= 0:
                     apy_i = b/100 # Some tolerance based on the average APY
                 
-                apy_model.append(0.0162)
+                apy_model.append(apy_i)
             df_deep_copy[token + " model"] = apy_model
         
         return df_deep_copy
