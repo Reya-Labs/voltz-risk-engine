@@ -1,8 +1,10 @@
 import unittest
+
+from sqlalchemy import true
 from MarginCalculator import MarginCalculator
 import pandas as pd
 import numpy as np
-from utils.utils import SECONDS_IN_WEEK, SECONDS_IN_YEAR, fixedRateToTick, notional_to_liquidity
+from utils.utils import SECONDS_IN_DAY, SECONDS_IN_WEEK, SECONDS_IN_YEAR, fixedRateToSqrtPrice, fixedRateToTick, notional_to_liquidity
 
 APY_UPPER_MULTIPLIER = 1.5
 APY_LOWER_MULTIPLIER = 0.7
@@ -136,10 +138,9 @@ class TestMarginCalculator(unittest.TestCase):
 
     def test_get_fixed_token_delta_unbalanced_simulated_unwind(self):
         variableTokenDeltaAbsolute = 1000
-        print("tick for fixedRate 1", fixedRateToTick(0))
-        fixedRateStart = 0.01
+        fixedRateStart = 1
         startingFixedRateMultiplier = 1.5
-        fixedRateDeviationMin = 0.002
+        fixedRateDeviationMin = 0.2
         termEndTimestamp = TERM_START_TIMESTAMP + 3 * SECONDS_IN_WEEK
         currentTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
         tMax = T_MAX
@@ -148,7 +149,301 @@ class TestMarginCalculator(unittest.TestCase):
         
         realized = self.marginCalculator.getFixedTokenDeltaUnbalancedSimulatedUnwind(variableTokenDeltaAbsolute, fixedRateStart, startingFixedRateMultiplier, fixedRateDeviationMin, termEndTimestamp, currentTimestamp, tMax, gamma, isFTUnwind)
 
-        print("realized:", realized)
+        self.assertAlmostEqual(realized, 943.555176826535, delta=1e-6)
+
+    
+    def test_worst_case_variable_factor_at_maturity(self):
+        timeInSecondsFromStartToMaturity = 1209600
+        isFT = True
+        isLM = True
+        lowerApyBound = None
+        upperApyBound = 0.107510526004699684
+
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.004123691408, delta=1e-6)
+
+        timeInSecondsFromStartToMaturity = 1209600
+        isFT = True
+        isLM = False
+        lowerApyBound = None
+        upperApyBound = 0.107510526004699684
+
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.00618553711259916, delta=1e-6)
+
+        timeInSecondsFromStartToMaturity = 1209600
+        isFT = False
+        isLM = True
+        lowerApyBound = 0.092372593455489616
+        upperApyBound = None
+
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.003543058379114670, delta=1e-6)
+
+        timeInSecondsFromStartToMaturity = 1209600
+        isFT = False
+        isLM = False
+        lowerApyBound = 0.092372593455489616
+        upperApyBound = None
+
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.002480140865380269, delta=1e-6)
+
+    def test_get_extra_balances(self):
+        fromTick = -120
+        toTick = 120
+        liquidity = 1000
+        variableFactor = 0.2
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+
+        realized = self.marginCalculator.getExtraBalances(fromTick, toTick, liquidity, variableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp)
+
+        self.assertAlmostEqual(realized[0], -12525.734370083996972796, delta=1e-3)
+        self.assertAlmostEqual(realized[1], 11.999472029327827822, delta=1e-3)
+
+
+        fromTick = 120
+        toTick = -120
+        liquidity = 1000
+        variableFactor = 0.2
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP + 3 * SECONDS_IN_DAY
+
+        realized = self.marginCalculator.getExtraBalances(fromTick, toTick, liquidity, variableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp)
+
+        self.assertAlmostEqual(realized[0], 12520.59173921428502871, delta=1e-3)
+        self.assertAlmostEqual(realized[1], -11.999472029327827822, delta=1e-3)
+
+    def test_get_margin_requirement(self):
+        fixedTokenBalance = 1000
+        variableTokenBalance = -3000
+        isLM = True
+        sqrtPrice = fixedRateToSqrtPrice(20)
+        lowerApyBound = 0.000356854815268913
+        upperApyBound = 0.001297058331272719
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        accruedVariableFactor = 0
+
+        realized = self.marginCalculator.getMarginRequirement(fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
+                             lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
+                             currentTimestamp, accruedVariableFactor)
+
+        self.assertAlmostEqual(realized, 11.424182354226593680, delta=1e-3)
+
+
+        fixedTokenBalance = 10
+        variableTokenBalance = -30000000
+        isLM = True
+        sqrtPrice = fixedRateToSqrtPrice(20)
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        accruedVariableFactor = 0
+
+        realized = self.marginCalculator.getMarginRequirement(fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
+                             lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
+                             currentTimestamp, accruedVariableFactor)
+
+        self.assertAlmostEqual(realized, 116159.629843635797628803, delta=10)
+
+
+        fixedTokenBalance = 1000
+        variableTokenBalance = -3000
+        isLM = False
+        sqrtPrice = fixedRateToSqrtPrice(20)
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        accruedVariableFactor = 0
+
+        realized = self.marginCalculator.getMarginRequirement(fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
+                             lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
+                             currentTimestamp, accruedVariableFactor)
+
+        self.assertAlmostEqual(realized, 11.752037636084398722, delta=1)
+
+ 
+        fixedTokenBalance = -1000
+        variableTokenBalance = 3000
+        isLM = True
+        sqrtPrice = fixedRateToSqrtPrice(1/20)
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        accruedVariableFactor = 0
+
+        realized = self.marginCalculator.getMarginRequirement(fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
+                             lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
+                             currentTimestamp, accruedVariableFactor)
+
+        self.assertAlmostEqual(realized, 0.171249348113833000, delta=1e-3)
+
+
+        fixedTokenBalance = 1000
+        variableTokenBalance = -30000
+        isLM = False
+        sqrtPrice = fixedRateToSqrtPrice(1/20)
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        accruedVariableFactor = 0
+
+        realized = self.marginCalculator.getMarginRequirement(fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
+                             lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
+                             currentTimestamp, accruedVariableFactor)
+
+        self.assertAlmostEqual(realized, 0.927603785405792000, delta=1e-3)
+
+
+    def test_get_position_margin_requirement(self):
+        variableFactor = 0
+        currentTick = -23028
+        positionLiquidity = 1000
+        tickLower = -13864
+        tickUpper = -6932
+        sqrtPrice = fixedRateToSqrtPrice(10)
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        positionFixedTokenBalance = 0
+        positionVariableTokenBalance = 0
+        isLM = True
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+
+        realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
+                                     termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
+                                     positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.110927831816756198, delta=1e-3)
+
+
+        variableFactor = 0
+        currentTick = fixedRateToTick(10)
+        positionLiquidity = 1000
+        tickLower = fixedRateToTick(4)
+        tickUpper = fixedRateToTick(2)
+        sqrtPrice = fixedRateToSqrtPrice(10)
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        positionFixedTokenBalance = 585.80
+        positionVariableTokenBalance = -207.10
+        isLM = True
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+
+        realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
+                                     termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
+                                     positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.2886377911, delta=1e-3)
+
+
+        variableFactor = 0
+        currentTick = fixedRateToTick(4)
+        positionLiquidity = 1000
+        tickLower = fixedRateToTick(10)
+        tickUpper = fixedRateToTick(2)
+        sqrtPrice = fixedRateToSqrtPrice(4)
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        positionFixedTokenBalance = -1162
+        positionVariableTokenBalance = 183
+        isLM = True
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+
+        realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
+                                     termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
+                                     positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.33252454764, delta=1e-3)
+
+
+        variableFactor = 0
+        currentTick = fixedRateToTick(4)
+        positionLiquidity = 1000
+        tickLower = fixedRateToTick(10)
+        tickUpper = fixedRateToTick(2)
+        sqrtPrice = fixedRateToSqrtPrice(4)
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        positionFixedTokenBalance = 0
+        positionVariableTokenBalance = 0
+        isLM = True
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+
+        realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
+                                     termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
+                                     positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.13290739135, delta=1e-3)
+
+
+        variableFactor = 0
+        currentTick = fixedRateToTick(2)
+        positionLiquidity = 1000
+        tickLower = fixedRateToTick(10)
+        tickUpper = fixedRateToTick(4)
+        sqrtPrice = fixedRateToSqrtPrice(2)
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        positionFixedTokenBalance = 0
+        positionVariableTokenBalance = 0
+        isLM = True
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+
+        realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
+                                     termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
+                                     positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.13290739135, delta=1e-3)
+
+
+        variableFactor = 0
+        currentTick = fixedRateToTick(2)
+        positionLiquidity = 1000
+        tickLower = fixedRateToTick(10)
+        tickUpper = fixedRateToTick(4)
+        sqrtPrice = fixedRateToSqrtPrice(2)
+        termStartTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        positionFixedTokenBalance = -1162
+        positionVariableTokenBalance = 183
+        isLM = True
+        lowerApyBound = 0.000356854230859285
+        upperApyBound = 0.001297056207122100
+
+        realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
+                                     termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
+                                     positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
+
+        self.assertAlmostEqual(realized, 0.22159689926, delta=1e-3)
+
 
     def date_to_unix_time(self):
         import datetime

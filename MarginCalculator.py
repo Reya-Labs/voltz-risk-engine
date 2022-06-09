@@ -54,7 +54,7 @@ class MarginCalculator:
             fixedTokenBalance=fixedTokenBalance,
             variableTokenBalance=variableTokenBalance,
             isLM=isLM,
-            sqrtPrice=fixedRateToSqrtPrice(row['fr']*100),
+            sqrtPrice=fixedRateToSqrtPrice(1),
             lowerApyBound=row['lower'],
             upperApyBound=row['upper'],
             termStartTimestamp=termStartTimestamp,
@@ -129,12 +129,12 @@ class MarginCalculator:
                                              positionFixedTokenBalance, isLM):
 
         marginRequirement = self.getPositionMarginRequirement(
-            variableFactor=0,
-            currentTick=fixedRateToTick(row['fr']*100),
+            variableFactor=0.000046626984126984,
+            currentTick=fixedRateToTick(1),
             positionLiquidity=positionLiquidity,
             tickLower=tickLower,
             tickUpper=tickUpper,
-            sqrtPrice=fixedRateToSqrtPrice(row['fr']*100),
+            sqrtPrice=fixedRateToSqrtPrice(1),
             termStartTimestamp=termStartTimestamp,
             termEndTimestamp=termEndTimestamp,
             currentTimestamp=row['date'],
@@ -168,6 +168,7 @@ class MarginCalculator:
         # todo: requirements towards term end timestamp seem to be suspiciously large
         return df
 
+    # tested
     def worstCaseVariableFactorAtMaturity(self, timeInSecondsFromStartToMaturity,
                                           isFT, isLM, lowerApyBound, upperApyBound):
 
@@ -214,6 +215,7 @@ class MarginCalculator:
 
         return margin
 
+    # inherintely tested
     def calculateFixedTokenBalance(self, amountFixed, excessBalance, termStartTimestamp, termEndTimestamp,
                                    currentTimestamp):
         fixedFactor = self.fixedFactor(
@@ -266,31 +268,24 @@ class MarginCalculator:
 
         return fixedTokenBalance
 
+    # tested
     def getFixedTokenDeltaUnbalancedSimulatedUnwind(self, variableTokenDeltaAbsolute, fixedRateStart,
                                                     startingFixedRateMultiplier,
                                                     fixedRateDeviationMin,
                                                     termEndTimestamp, currentTimestamp, tMax, gamma,
                                                     isFTUnwind):
 
-        print(fixedRateStart)
         # calculate D
         upperD = fixedRateStart * startingFixedRateMultiplier
-        print("upperD", upperD)
 
         if upperD < fixedRateDeviationMin:
             upperD = fixedRateDeviationMin
 
-        print("upperD", upperD)
-
         # calcualte d
         scaledTime = (termEndTimestamp - currentTimestamp) / tMax
-        print("scaledTime", scaledTime)
         expInput = scaledTime * (-gamma)
-        print("expInput", expInput)
         oneMinusTimeFactor = 1 - math.exp(expInput)
-        print("oneMinusTimeFactor", oneMinusTimeFactor)
         d = upperD * oneMinusTimeFactor
-        print("d", d)
 
         if isFTUnwind:
             if fixedRateStart > d:
@@ -300,16 +295,11 @@ class MarginCalculator:
         else:
             fixedRateCF = fixedRateStart + d
 
-        print("fixedRateCF", fixedRateCF)
-
         fixedTokenDeltaUnbalanced = variableTokenDeltaAbsolute * fixedRateCF
-
-        print("fixedTokenDeltaUnbalanced", fixedTokenDeltaUnbalanced)
-        print()
-        print("-----------------------------------------------------")
 
         return fixedTokenDeltaUnbalanced
 
+    # inherintely tested
     def getMinimumMarginRequirement(self, fixedTokenBalance, variableTokenBalance, isLM, fixedRate, currentTimestamp,
                                     accruedVariableFactor, lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp):
 
@@ -384,6 +374,7 @@ class MarginCalculator:
 
         return margin
 
+    # tested
     def getExtraBalances(self, fromTick, toTick, liquidity, variableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp):
 
         assert(liquidity >= 0)
@@ -424,6 +415,7 @@ class MarginCalculator:
 
         return extraFixedTokenBalance, amount1
 
+    # tested
     def getMarginRequirement(self, fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor):

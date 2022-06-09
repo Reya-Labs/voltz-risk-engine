@@ -66,7 +66,7 @@ class Simulator(Calibrator):
         for token in tokens:
             a, b, sigma = self.a_values_dict[token], self.b_values_dict[token], self.sigma_dict[token]*F
             apy_i = df_deep_copy[token].values[0]
-            apy_model = [apy_i]
+            apy_model = [0.0162]
             for i in range(1, len(df_deep_copy)):
                 dapy = a*(b-apy_i)*dt + sigma * np.sqrt(apy_i) * np.random.normal(0,1,1)[0] * np.sqrt(dt) # Need a random seed for this
                 apy_i += dapy
@@ -75,7 +75,7 @@ class Simulator(Calibrator):
                 if apy_i <= 0:
                     apy_i = b/100 # Some tolerance based on the average APY
                 
-                apy_model.append(apy_i)
+                apy_model.append(0.0162)
             df_deep_copy[token + " model"] = apy_model
         
         return df_deep_copy
@@ -94,15 +94,17 @@ class Simulator(Calibrator):
             
         tokens = [c for c in df_apy.columns if (("model" not in c) and ("Date" not in c))]
         # Calculate the appropriate time deltas
-        time_deltas = np.array([(len(df_apy)-1-i)*SECONDS_IN_DAY/self.tMax for i in range(len(df_apy))])
+        time_deltas = np.array([(len(df_apy)-i)*SECONDS_IN_DAY/self.tMax for i in range(len(df_apy))])
         for token in tokens:
             alpha = self.a_values_dict[token]*self.b_values_dict[token]
             beta = self.a_values_dict[token]
             sigma = self.sigma_dict[token]*F
+
             k = 4*alpha/sigma**2
         
             # Litepaper parameters
             time_factor = np.array([np.exp(-beta*dt) for dt in time_deltas])
+
             zeta = sigma**2 * (1-time_factor)/(4*beta)
             lamb = (1/zeta) * time_factor * df_apy[token + " model"]
         
