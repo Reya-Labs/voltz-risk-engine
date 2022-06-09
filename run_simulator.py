@@ -1,7 +1,6 @@
 import pandas as pd
-from MarginCalculator import SECONDS_IN_YEAR
+from MarginCalculator import MarginCalculator
 from Simulator import Simulator
-from TestMarginCalculator import TestMarginCalculator
 from TestPortfolioCalculator import TestPortfolioCalculator
 import json
 import os
@@ -9,7 +8,8 @@ import optuna
 import numpy as np
 # Positions -- want to disentangle positions from parameters
 from position_dict import position
-from utils.utils import fixedRateToTick, notional_to_liquidity
+from utils.constants import ALPHA, BETA, MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS, SIGMA_SQUARED, XI_LOWER, XI_UPPER
+from utils.utils import SECONDS_IN_YEAR, fixedRateToTick, notional_to_liquidity
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
@@ -70,25 +70,29 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # 2. Instantiate the MarginCalculator through its TestMarginCalculator class. Will update downstream in the simulation    # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    tmc = TestMarginCalculator()
-    tmc.setUp()
-    tmc.tokens = pos["tokens"] # Specific tokens in the pool
-    tmc.date_original = df.index # Need to keep record of the original time here so it's not overwritten in the MarginCalculator
-    tmc.marginCalculator.tMax = SECONDS_IN_YEAR 
-    # Tuneable parameters for the liquidation margin
-    tmc.marginCalculator.apyLowerMultiplier = tau_d 
-    tmc.marginCalculator.apyUpperMultiplier = tau_u 
-    
-    # Tuneable parameters for the counterfactual unwind
-    tmc.marginCalculator.gamma = gamma_unwind 
-    tmc.marginCalculator.devMulLeftUnwindLM = dev_lm 
-    tmc.marginCalculator.devMulRightUnwindLM = dev_lm
-    tmc.marginCalculator.devMulLeftUnwindIM = dev_im
-    tmc.marginCalculator.devMulRightUnwindIM = dev_im
-    tmc.marginCalculator.fixedRateDeviationMinLeftUnwindLM = r_init_lm
-    tmc.marginCalculator.fixedRateDeviationMinRightUnwindLM = r_init_lm
-    tmc.marginCalculator.fixedRateDeviationMinLeftUnwindIM = r_init_im
-    tmc.marginCalculator.fixedRateDeviationMinRightUnwindIM = r_init_im
+    mc = MarginCalculator(
+        apyUpperMultiplier=tau_u, 
+        apyLowerMultiplier=tau_d, 
+        sigmaSquared=SIGMA_SQUARED, 
+        alpha=ALPHA, 
+        beta=BETA, 
+        xiUpper=XI_UPPER, 
+        xiLower=XI_LOWER, 
+        tMax=SECONDS_IN_YEAR, 
+        devMulLeftUnwindLM=dev_lm,
+        devMulRightUnwindLM=dev_lm,
+        devMulLeftUnwindIM=dev_im,
+        devMulRightUnwindIM=dev_im,
+        fixedRateDeviationMinLeftUnwindLM=r_init_lm,
+        fixedRateDeviationMinRightUnwindLM=r_init_lm,
+        fixedRateDeviationMinLeftUnwindIM=r_init_im,
+        fixedRateDeviationMinRightUnwindIM=r_init_im,
+        gamma=gamma_unwind,
+        minMarginToIncentiviseLiquidators=MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS,
+    )
+ 
+    # tmc.tokens = pos["tokens"] # Specific tokens in the pool
+    # tmc.date_original = df.index # Need to keep record of the original time here so it's not overwritten in the MarginCalculator
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # # # 3. Instantiate the PortfolioCalculator through its TestPortfolioCalculator class  # # #
@@ -134,7 +138,6 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
             
             # The different APY bounds are automatically passed to the TMC for different tokens
             # We need to update the simulated APY model passed to the TMC in each bound
-            tmc.df_original = df_apy
             fee_collector = [] # Tracks protocol fees
             for market in fr_markets:
                 for lev in leverage_factors:
@@ -142,7 +145,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
                         tpc.portfolioCalculator.gammaFee = fee # Reset the fee
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"] = {}
                         
-                        df_apy_mc, balances = tmc.test_generate_full_output(notional=pos["notional"], lp_fix=pos["lp_fix"], \
+                        df_apy_mc, balances = mc.generate_full_output(df_apy=df_apy, date_original=df.index, tokens=pos["tokens"], notional=pos["notional"], lp_fix=pos["lp_fix"], \
                             lp_var=pos["lp_var"], tick_l=lower, tick_u=upper, fr_market=market, leverage_factor=lev)
                         
                         # Now run the initial methods in the PortfolioCalculator to generate the LP PnL and the associated trader fees

@@ -1,5 +1,8 @@
 import math
-from utils.utils import SECONDS_IN_YEAR, fixedRateToSqrtPrice, fixedRateToTick, getAmount0Delta, getAmount1Delta, getSqrtRatioAtTick, sqrtPriceToFixedRate
+
+import pandas as pd
+from utils.utils import SECONDS_IN_YEAR, date_to_unix_time, fixedRateToSqrtPrice, fixedRateToTick, getAmount0Delta, getAmount1Delta, getSqrtRatioAtTick, notional_to_liquidity, preprocess_df, sqrtPriceToFixedRate
+
 
 class MarginCalculator:
 
@@ -188,6 +191,7 @@ class MarginCalculator:
 
         return variableFactor
 
+    # inherintely tested
     def _getMarginRequirement(self, fixedTokenBalance, variableTokenBalance, isLM, lowerApyBound, upperApyBound,
                               termStartTimestamp, termEndTimestamp, currentTimestamp):
         if (fixedTokenBalance >= 0) and (variableTokenBalance >= 0):
@@ -454,6 +458,7 @@ class MarginCalculator:
 
         return margin
 
+    # tested
     def getPositionMarginRequirement(self, variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound):
@@ -571,3 +576,114 @@ class MarginCalculator:
                 termEndTimestamp=termEndTimestamp,
                 currentTimestamp=currentTimestamp
             )
+
+    def generate_full_output(self, df_apy, date_original, tokens, leverage_factor=1, notional=1000, lp_fix=0, lp_var=0, tick_l=5000, tick_u=6000, fr_market="neutral"):
+
+        # All tokens
+        # All trader types
+        # Margin requirements & pnl
+        lp_fixed_token_balance = lp_fix
+        lp_variable_token_balance = lp_var
+        tickLower = tick_l
+        tickUpper = tick_u
+        lp_liquidity = notional_to_liquidity(
+            notional=notional, tick_l=tickLower, tick_u=tickUpper)
+
+        list_of_tokens = tokens
+        trader_types = ["ft", "vt", "lp"]
+
+        dfs_per_token = []
+        # We need to keep track of the position names for the PortfolioCalculator
+        balance_per_token = {}
+
+        # Before looping of each token we need to first convert the timestamp to unix time **IN SECONDS**, so
+        # that we can later on normalised to SECONDS_IN_YEAR for the APY calculation
+        df = date_to_unix_time(df_apy, date_original)
+        for token in list_of_tokens:
+            # Update for each new token
+            df = preprocess_df(df, token, fr_market=fr_market)
+            # Now we need to update the fixed and variable token balances to account for
+            # different possibilities/markets in the fixed rate
+            ft_fixed_token_balance = notional * (df["fr"].values[0] * 100)
+            ft_variable_token_balance = -notional
+            vt_fixed_token_balance = -notional * (df["fr"].values[0] * 100)
+            vt_variable_token_balance = notional
+
+            balance_per_token[token] = {
+                "ft_fix": ft_fixed_token_balance,
+                "ft_var": ft_variable_token_balance,
+                "vt_fix": vt_fixed_token_balance,
+                "vt_var": vt_variable_token_balance,
+            }
+            for trader_type in trader_types:
+
+                if trader_type == 'ft':
+
+                    df = self.generate_margin_requirements_trader(df, ft_fixed_token_balance,
+                                                                ft_variable_token_balance, 'ft', f'{token}')
+
+                    daily_fixed_rate = (
+                        (abs(ft_fixed_token_balance) / ft_variable_token_balance) / 100) / 365
+
+                    fixed_factor_series = pd.Series(data=1, index=range(len(df)))
+                    fixed_factor_series = pd.Series(
+                        data=fixed_factor_series.index * daily_fixed_rate)
+
+                    df = self.generate_pnl_trader(df, fixed_factor_series, ft_fixed_token_balance,
+                                                                ft_variable_token_balance, 'ft', f'{token}')
+
+                    df = self.generate_net_margin_trader(df,
+                                                                        ft_fixed_token_balance, ft_variable_token_balance, 'ft', f'{token}', leverage_factor=leverage_factor)
+
+                elif trader_type == 'vt':
+
+                    df = self.generate_margin_requirements_trader(df, vt_fixed_token_balance,
+                                                                                vt_variable_token_balance, 'vt', f'{token}')
+
+                    daily_fixed_rate = (
+                        (abs(vt_fixed_token_balance) / vt_variable_token_balance) / 100) / 365
+
+                    fixed_factor_series = pd.Series(data=1, index=range(len(df)))
+                    fixed_factor_series = pd.Series(
+                        data=fixed_factor_series.index * daily_fixed_rate)
+
+                    df = self.generate_pnl_trader(df, fixed_factor_series,
+                                                                vt_fixed_token_balance,
+                                                                vt_variable_token_balance, 'vt', f'{token}')
+
+                    df = self.generate_net_margin_trader(df,
+                                                                        vt_fixed_token_balance, vt_variable_token_balance, 'vt', f'{token}', leverage_factor=leverage_factor)
+
+                else:
+                    df = self.generate_margin_requirements_lp(
+                        df=df,
+                        fixedTokenBalance=lp_fixed_token_balance,
+                        variableTokenBalance=lp_variable_token_balance,
+                        liquidity=lp_liquidity,
+                        tickLower=tickLower,
+                        tickUpper=tickUpper,
+                        token=f'{token}'
+                    )
+
+            df = df.rename(
+                columns={
+                    'apy': f'apy_{token}',
+                    'lower': f'lower_{token}',
+                    'upper': f'upper_{token}',
+                    'fr': f'fr_{token}',
+                    'rate': f'rate_{token}',
+                    'liquidity_index': f'liquidity_index_{token}',
+                    'variable factor': f'variable factor_{token}',
+                }
+            )
+
+            df = df.set_index(
+                'date'
+            )
+            dfs_per_token.append(df)
+        result = pd.concat(dfs_per_token, axis=1)
+        # Add t_year for downstream APY calculation
+        result["t_years"] = [(i-result.index.values[0]) /
+                            SECONDS_IN_YEAR for i in result.index.values]
+
+        return result, balance_per_token
