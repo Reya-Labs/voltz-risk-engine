@@ -1,3 +1,4 @@
+from tkinter.tix import InputOnly
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,8 +15,7 @@ from arch.bootstrap import CircularBlockBootstrap, optimal_block_length
 """
 class RiskMetrics():
     
-    def __init__(self, df, notional, liquidation_series, margin_series, pnl_series, \
-                    liquidation=None, insolvency=None, pool_size=None):
+    def __init__(self, df, notional, liquidation_series, margin_series, pnl_series, pool_size=None):
         self.z_scores = {
             95: 1.96,
             99: 2.58
@@ -32,17 +32,15 @@ class RiskMetrics():
         self.liquidation_series = df[liquidation_series]
         self.margin_series = df[margin_series]
         self.pnl_series = df[pnl_series]
-
-        if liquidation is None:
-            self.liquidation = self.liquidation().replace([np.inf, -np.inf], np.nan, inplace=True)
-        else:
-            self.liquidation = liquidation
-
-        if insolvency is None:
-            self.insolvency = self.insolvency().replace([np.inf, -np.inf], np.nan, inplace=True)
-        else:
-            self.insolvency = insolvency
-
+        """
+        the_liquidation = self.liquidation()
+        the_insolvency = self.insolvency()
+        self.liquidation = the_liquidation.replace([np.inf, -np.inf], np.nan, inplace=True)
+        self.insolvency = the_insolvency.replace([np.inf, -np.inf], np.nan, inplace=True)
+        """
+        
+        self.liquidation = self.liquidation()
+        self.insolvency = self.insolvency()
 
     """
         Liquidation time series, from input margin and 
@@ -51,7 +49,7 @@ class RiskMetrics():
         Tends to liquidation as the value -> 0
     """
     def liquidation(self):
-        return (self.margin_series.iloc[0] - self.liquidation_series) / self.liquidation_series
+        return (self.margin_series.iloc[0] - self.liquidation_series) #/ self.liquidation_series
 
     """
         Insolvency time series, from input margin and 
@@ -60,7 +58,7 @@ class RiskMetrics():
         Tends to insolvency as value < 0
     """
     def insolvency(self):
-        return (self.pnl_series + self.margin_series.iloc[0]) / self.margin_series.iloc[0]
+        return (self.pnl_series + self.margin_series.iloc[0]) #/ self.margin_series.iloc[0]
 
     """
         Time series block bootstrapping to produce N_replicates
@@ -72,16 +70,15 @@ class RiskMetrics():
 
         self.liquidation.dropna(inplace=True)
         self.insolvency.dropna(inplace=True)
-
         # Optimal block lengths    
         time_delta_l = optimal_block_length(self.liquidation)["circular"].values[0]
         time_delta_i = optimal_block_length(self.insolvency)["circular"].values[0]
 
         # Block bootstrapping
-        l_bs = CircularBlockBootstrap(block_size=time_delta_l, x=self.liquidation, random_state=rs)
-        i_bs = CircularBlockBootstrap(block_size=time_delta_i, x=self.insolvency, random_state=rs)
-        l_rep = [data[1]["x"].reset_index().drop(columns=["index"]).values.flatten() for data in l_bs.bootstrap(N_replicates)]
-        i_rep = [data[1]["x"].reset_index().drop(columns=["index"]).values.flatten() for data in i_bs.bootstrap(N_replicates)]
+        l_bs = CircularBlockBootstrap(block_size=int(time_delta_l)+1, x=self.liquidation, random_state=rs)
+        i_bs = CircularBlockBootstrap(block_size=int(time_delta_i)+1, x=self.insolvency, random_state=rs)
+        l_rep = [data[1]["x"].values.flatten() for data in l_bs.bootstrap(N_replicates)]
+        i_rep = [data[1]["x"].values.flatten() for data in i_bs.bootstrap(N_replicates)]
 
         return l_rep, i_rep
 

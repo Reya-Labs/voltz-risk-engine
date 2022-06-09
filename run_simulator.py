@@ -12,11 +12,11 @@ from position_dict import position
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
-RUN_OPTUNA = False
+RUN_OPTUNA = True
 DF_TO_OPTIMIZE = "aave"
 
 # Positions
-POSITION = "leverage_positions_USDC" 
+POSITION = "Generalised_position_many_ticks_USDC" 
 pos = position[POSITION]
 top_dir = f"./simulations/{POSITION}/"
 
@@ -269,23 +269,23 @@ def run_with_a_single_set_of_params(parser):
 
 def objective(trial):
 
-    # Put additional constraints of free parameters here to regularise them
-    tau_u = trial.suggest_float("tau_u", 1.0001, 10, log=True)
-    tau_d = trial.suggest_float("tau_d", 0.0001, 1, log=True)
-    gamma_unwind = trial.suggest_float("gamma_unwind", 0.0001, 10, log=True)
-    dev_lm = trial.suggest_float("dev_lm", 0.0001, 10, log=True)
-    dev_im = trial.suggest_float("dev_im", 0.0001, 10, log=True)
-    r_init_lm = trial.suggest_float("r_init_lm", 0.001, 0.2, log=True)
-    r_init_im = trial.suggest_float("r_init_im", 0.001, 0.2, log=True)
-    a_factor = trial.suggest_float("a_factor", 0.5, 5, log=True)
-    b_factor = trial.suggest_float("b_factor", 0.3, 3, log=True)
-    lookback = trial.suggest_int("lookback", 5, pos["pool_size"], log=True) 
-    lambda_fee = trial.suggest_float("lambda_fee", 0.001, 0.1, log=True) # We probably want to collect at least 10 %
-
+    tau_u = trial.suggest_categorical("tau_u", np.linspace(1.0001, 10, 100).tolist())
+    tau_d = trial.suggest_categorical("tau_d", np.linspace(0.0001, 1, 1000).tolist())
+    gamma_unwind = trial.suggest_categorical("gamma_unwind", np.linspace(0.0001, 10, 1000).tolist())
+    dev_lm = trial.suggest_categorical("dev_lm", np.linspace(0.0001, 10, 1000).tolist())
+    dev_im = trial.suggest_categorical("dev_im", np.linspace(0.0001, 10, 1000).tolist())
+    r_init_lm = trial.suggest_categorical("r_init_lm", np.linspace(0.001, 0.2, 100).tolist())
+    r_init_im = trial.suggest_categorical("r_init_im", np.linspace(0.001, 0.2, 100).tolist())
+    a_factor = trial.suggest_categorical("a_factor", np.linspace(0.5, 5, 50).tolist())
+    b_factor = trial.suggest_categorical("b_factor", np.linspace(0.3, 3, 50).tolist())
+    lookback = trial.suggest_categorical("lookback", np.arange(3, int(pos["pool_size"]/2), 1).tolist()) 
+    #lambda_fee = trial.suggest_categorical("lambda_fee", np.linspace(0.001, 0.1, 100).tolist()) 
+    #gamma_fee = trial.suggest_categorical("gamma_fee", np.linspace(0.0003, 0.03, 100).tolist()) 
+    
     # Default protocol fee constraints for v1
     lambda_fee = 0 # i.e. no protocol collected fees -- update this
     gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
-    
+
     if DF_TO_OPTIMIZE=="aave":
         obj = main(in_name="AaveVariable", out_name="df_AaveVariable_APY_model_and_bounds_optimised",
                         tau_u=tau_u, tau_d=tau_d, gamma_unwind=gamma_unwind, dev_lm=dev_lm,
@@ -305,6 +305,7 @@ def objective(trial):
 def run_param_optimization(parser):
 
     parser.add_argument("-n_trials", "--n_trials", type=float, help="Number of optimization trials", default=2)
+    parser.add_argument("-d", "--debug", action="store_true", help="Debug mode", default=False)
     n_trials = parser.parse_args().n_trials
 
     study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(), pruner=optuna.pruners.SuccessiveHalvingPruner())
