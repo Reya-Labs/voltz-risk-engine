@@ -168,7 +168,7 @@ def calculate_liquidity_index(df):
     return df
 
 
-def compute_minimum_margin_requirement_df_row(marginCalculator, row, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance, isLM):
+def compute_minimum_margin_requirement_df_row(row, marginCalculator, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance, isLM):
 
         minimum_margin_requirement = marginCalculator.getMinimumMarginRequirement(
             fixedTokenBalance=fixedTokenBalance,
@@ -185,7 +185,7 @@ def compute_minimum_margin_requirement_df_row(marginCalculator, row, termStartTi
 
         return minimum_margin_requirement
 
-def compute_margin_requirement_df_row_trader(marginCalculator, row, termStartTimestamp, termEndTimestamp,
+def compute_margin_requirement_df_row_trader(row, marginCalculator, termStartTimestamp, termEndTimestamp,
                                                  fixedTokenBalance, variableTokenBalance, isLM):
 
         marginRequirement = marginCalculator.getMarginRequirement(
@@ -262,7 +262,7 @@ def generate_margin_requirements_trader(marginCalculator, df, fixedTokenBalance,
 
         return df
 
-def compute_margin_requirement_df_row_lp(marginCalculator, row, termStartTimestamp, termEndTimestamp,
+def compute_margin_requirement_df_row_lp(row, marginCalculator, termStartTimestamp, termEndTimestamp,
                                              positionLiquidity, tickLower, tickUpper, positionVariableTokenBalance,
                                              positionFixedTokenBalance, isLM):
 

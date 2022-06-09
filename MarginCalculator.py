@@ -1,7 +1,7 @@
 import math
 
 import pandas as pd
-from utils.utils import SECONDS_IN_YEAR, date_to_unix_time, fixedRateToSqrtPrice, fixedRateToTick, getAmount0Delta, getAmount1Delta, getSqrtRatioAtTick, notional_to_liquidity, preprocess_df, sqrtPriceToFixedRate
+from utils.utils import SECONDS_IN_YEAR, date_to_unix_time, fixedRateToSqrtPrice, fixedRateToTick, generate_margin_requirements_lp, generate_margin_requirements_trader, generate_net_margin_trader, generate_pnl_trader, getAmount0Delta, getAmount1Delta, getSqrtRatioAtTick, notional_to_liquidity, preprocess_df, sqrtPriceToFixedRate
 
 
 class MarginCalculator:
@@ -481,7 +481,7 @@ class MarginCalculator:
 
                 if trader_type == 'ft':
 
-                    df = self.generate_margin_requirements_trader(df, ft_fixed_token_balance,
+                    df = generate_margin_requirements_trader(self, df, ft_fixed_token_balance,
                                                                 ft_variable_token_balance, 'ft', f'{token}')
 
                     daily_fixed_rate = (
@@ -491,15 +491,15 @@ class MarginCalculator:
                     fixed_factor_series = pd.Series(
                         data=fixed_factor_series.index * daily_fixed_rate)
 
-                    df = self.generate_pnl_trader(df, fixed_factor_series, ft_fixed_token_balance,
+                    df = generate_pnl_trader(df, fixed_factor_series, ft_fixed_token_balance,
                                                                 ft_variable_token_balance, 'ft', f'{token}')
 
-                    df = self.generate_net_margin_trader(df,
+                    df = generate_net_margin_trader(df,
                                                                         ft_fixed_token_balance, ft_variable_token_balance, 'ft', f'{token}', leverage_factor=leverage_factor)
 
                 elif trader_type == 'vt':
 
-                    df = self.generate_margin_requirements_trader(df, vt_fixed_token_balance,
+                    df = generate_margin_requirements_trader(self, df, vt_fixed_token_balance,
                                                                                 vt_variable_token_balance, 'vt', f'{token}')
 
                     daily_fixed_rate = (
@@ -509,15 +509,16 @@ class MarginCalculator:
                     fixed_factor_series = pd.Series(
                         data=fixed_factor_series.index * daily_fixed_rate)
 
-                    df = self.generate_pnl_trader(df, fixed_factor_series,
+                    df = generate_pnl_trader(df, fixed_factor_series,
                                                                 vt_fixed_token_balance,
                                                                 vt_variable_token_balance, 'vt', f'{token}')
 
-                    df = self.generate_net_margin_trader(df,
+                    df = generate_net_margin_trader(df,
                                                                         vt_fixed_token_balance, vt_variable_token_balance, 'vt', f'{token}', leverage_factor=leverage_factor)
 
                 else:
-                    df = self.generate_margin_requirements_lp(
+                    df = generate_margin_requirements_lp(
+                        marginCalculator=self,
                         df=df,
                         fixedTokenBalance=lp_fixed_token_balance,
                         variableTokenBalance=lp_variable_token_balance,

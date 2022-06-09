@@ -153,7 +153,6 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
                         tpc.portfolioCalculator.liquidity = notional_to_liquidity(notional=pos["notional"], \
                             tick_l=lower, tick_u=upper)
 
-
                         # Reset the PortfolioCalculator with the new FT and VT positions (these change in each fixed rate market, which can
                         # now also change with the token)
                         tpc.portfolioCalculator.set_positions(balances)

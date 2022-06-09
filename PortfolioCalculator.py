@@ -385,6 +385,7 @@ class PortfolioCalculator:
                     liquidation_series=f"mr_lm_vt_{token}_{self.vtPosInit}", \
                         margin_series=f"mr_im_vt_{token}_{self.vtPosInit}", pnl_series=f"pnl_vt_{token}_{self.vtPosInit}")
             
+            print("risk_LP:", risk_LP)
             l_rep_lp, i_rep_lp = risk_LP.generate_replicates(N_replicates=100)
             l_var_lp, i_var_lp = risk_LP.lvar_and_ivar(alpha=95, l_rep=l_rep_lp, i_rep=i_rep_lp)
             
