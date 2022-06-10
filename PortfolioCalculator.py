@@ -393,7 +393,8 @@ class PortfolioCalculator:
 
             l_rep_vt, i_rep_vt = risk_VT.generate_replicates(N_replicates=100)
             l_var_vt, i_var_vt = risk_VT.lvar_and_ivar(alpha=95, l_rep=l_rep_vt, i_rep=i_rep_vt)
-
+            
+            # Save the VaRS
             l_vars[f"LVaR FT: {token}"], i_vars[f"IVaR FT: {token}"] = l_var_ft, i_var_ft
             l_vars[f"LVaR VT: {token}"], i_vars[f"IVaR VT: {token}"] = l_var_vt, i_var_vt
             l_vars[f"LVaR LP: {token}"], i_vars[f"IVaR LP: {token}"] = l_var_lp, i_var_lp
@@ -433,8 +434,8 @@ class PortfolioCalculator:
         l_factors = self.computeLiquidationFactor() # Liquidation calculation
         levs = self.computeLeverage(tickLower=tick_l, tickUpper=tick_u) # Leverage calculation
         the_apys = self.returnAPYs() # APYs
-        #l_vars, i_vars = self.portfolioCalculator.computeVaRs(tickLower=tick_l, tickUpper=tick_u) #LVaRs and IVaRs
+        l_vars, i_vars = self.computeVaRs(tickLower=tick_l, tickUpper=tick_u) #LVaRs and IVaRs
 
         print("Completed Sharpe ratio and undercolateralisation calculations")
 
-        return sharpes, undercols, l_factors, levs, the_apys #, l_vars, i_vars
+        return sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars

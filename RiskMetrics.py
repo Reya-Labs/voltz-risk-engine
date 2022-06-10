@@ -30,14 +30,7 @@ class RiskMetrics():
         self.notional = notional
         self.liquidation_series = df[liquidation_series]
         self.margin_series = df[margin_series]
-        self.pnl_series = df[pnl_series]
-        """
-        the_liquidation = self.liquidation()
-        the_insolvency = self.insolvency()
-        self.liquidation = the_liquidation.replace([np.inf, -np.inf], np.nan, inplace=True)
-        self.insolvency = the_insolvency.replace([np.inf, -np.inf], np.nan, inplace=True)
-        """
-        
+        self.pnl_series = df[pnl_series] 
         self.liquidation = self.liquidation()
         self.insolvency = self.insolvency()
 
@@ -136,8 +129,8 @@ class RiskMetrics():
         if (l_var is None) or (i_var is None):
             l_var, i_var = self.lvar_and_ivar()
         
-        l_lev = self.notional / (self.liquidation_series.iloc[time_horizon]*l_var + self.liquidation_series.iloc[time_horizon])
-        i_lev = self.notional / (self.margin_series.iloc[0]*i_var - self.margin_series.iloc[0])
+        l_lev = self.notional / (self.liquidation_series.iloc[time_horizon] + l_var)
+        i_lev = self.notional / (i_var - self.pnl_series.iloc[0])
         return l_lev, i_lev
 
     """
