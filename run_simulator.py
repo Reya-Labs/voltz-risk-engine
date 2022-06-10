@@ -1,14 +1,15 @@
 import pandas as pd
-from MarginCalculator import SECONDS_IN_YEAR
+from MarginCalculator import MarginCalculator
+from PortfolioCalculator import PortfolioCalculator
 from Simulator import Simulator
-from TestMarginCalculator import TestMarginCalculator
-from TestPortfolioCalculator import TestPortfolioCalculator
 import json
 import os
 import optuna
 import numpy as np
 # Positions -- want to disentangle positions from parameters
 from position_dict import position
+from utils.constants import ALPHA, BETA, MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS, SIGMA_SQUARED, XI_LOWER, XI_UPPER
+from utils.utils import SECONDS_IN_YEAR, fixedRateToTick, notional_to_liquidity
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
@@ -68,40 +69,48 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # 2. Instantiate the MarginCalculator through its TestMarginCalculator class. Will update downstream in the simulation    # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    tmc = TestMarginCalculator()
-    tmc.setUp()
-    tmc.tokens = pos["tokens"] # Specific tokens in the pool
-    tmc.date_original = df.index # Need to keep record of the original time here so it's not overwritten in the MarginCalculator
-    tmc.marginCalculator.tMax = SECONDS_IN_YEAR 
-    # Tuneable parameters for the liquidation margin
-    tmc.marginCalculator.apyLowerMultiplier = tau_d 
-    tmc.marginCalculator.apyUpperMultiplier = tau_u 
-    
-    # Tuneable parameters for the counterfactual unwind
-    tmc.marginCalculator.gamma = gamma_unwind 
-    tmc.marginCalculator.devMulLeftUnwindLM = dev_lm 
-    tmc.marginCalculator.devMulRightUnwindLM = dev_lm
-    tmc.marginCalculator.devMulLeftUnwindIM = dev_im
-    tmc.marginCalculator.devMulRightUnwindIM = dev_im
-    tmc.marginCalculator.fixedRateDeviationMinLeftUnwindLM = r_init_lm
-    tmc.marginCalculator.fixedRateDeviationMinRightUnwindLM = r_init_lm
-    tmc.marginCalculator.fixedRateDeviationMinLeftUnwindIM = r_init_im
-    tmc.marginCalculator.fixedRateDeviationMinRightUnwindIM = r_init_im
+    mc = MarginCalculator(
+        apyUpperMultiplier=tau_u, 
+        apyLowerMultiplier=tau_d, 
+        sigmaSquared=SIGMA_SQUARED, 
+        alpha=ALPHA, 
+        beta=BETA, 
+        xiUpper=XI_UPPER, 
+        xiLower=XI_LOWER, 
+        tMax=SECONDS_IN_YEAR, 
+        devMulLeftUnwindLM=dev_lm,
+        devMulRightUnwindLM=dev_lm,
+        devMulLeftUnwindIM=dev_im,
+        devMulRightUnwindIM=dev_im,
+        fixedRateDeviationMinLeftUnwindLM=r_init_lm,
+        fixedRateDeviationMinRightUnwindLM=r_init_lm,
+        fixedRateDeviationMinLeftUnwindIM=r_init_im,
+        fixedRateDeviationMinRightUnwindIM=r_init_im,
+        gamma=gamma_unwind,
+        minMarginToIncentiviseLiquidators=MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS,
+    )
+ 
+    # tmc.tokens = pos["tokens"] # Specific tokens in the pool
+    # tmc.date_original = df.index # Need to keep record of the original time here so it's not overwritten in the MarginCalculator
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # # # 3. Instantiate the PortfolioCalculator through its TestPortfolioCalculator class  # # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    tpc = TestPortfolioCalculator()
-    tpc.setUp()
-    # Fee structure "tuneable" parameters 
-    tpc.portfolioCalculator.lambdaFee = lambda_fee
-    tpc.portfolioCalculator.gammaFee = gamma_fee
-    tpc.portfolioCalculator.tokens = pos["tokens"] 
-    tpc.portfolioCalculator.lpPosInit = f"{pos['lp_fix']}_{pos['lp_var']}"
-    tpc.portfolioCalculator.tPool = (pos["pool_size"]/365)*SECONDS_IN_YEAR
-    tpc.portfolioCalculator.notional = pos["notional"]
-    tpc.portfolioCalculator.proportion_traded_per_day = 0.20 # Assumption in the modelling, inspired by UniSwap
-
+    
+    pc = PortfolioCalculator(
+            df_protocol=None,
+            lambdaFee=lambda_fee,
+            gammaFee=gamma_fee,
+            tokens=pos["tokens"],
+            liquidity=1000,
+            balances=None,
+            tPool=(pos["pool_size"]/365)*SECONDS_IN_YEAR,
+            lpPosInit=(pos['lp_fix'], pos['lp_var']),
+            ftPosInit=(1000,-1000), # FT positions
+            vtPosInit=(-1000,1000), # VT positions
+            notional=1000, # Absolute value of the variable token balance of a trader (both ft and vt are assumed to have the same)
+            proportion_traded_per_day=0.20 # Assumption in the modelling, inspired by UniSwap
+        )
 
     # Define the relevant marker cases to loop over and construct different APY and IRS pool
     # scenarios
@@ -128,43 +137,44 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
             
             # Get the relevant ticks from the rates
             # Remember: higher fixed rate => lower tick, from the geometry of the vAMM
-            upper, lower = tmc.marginCalculator.fixedRateToTick(rate_range[0]), tmc.marginCalculator.fixedRateToTick(rate_range[1])
+            upper, lower = fixedRateToTick(rate_range[0]), fixedRateToTick(rate_range[1])
             
             # The different APY bounds are automatically passed to the TMC for different tokens
             # We need to update the simulated APY model passed to the TMC in each bound
-            tmc.df_original = df_apy
             fee_collector = [] # Tracks protocol fees
             for market in fr_markets:
                 for lev in leverage_factors:
                     for fee in gamma_fees:
-                        tpc.portfolioCalculator.gammaFee = fee # Reset the fee
+                        pc.gammaFee = fee # Reset the fee
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"] = {}
                         
-                        df_apy_mc, balances = tmc.test_generate_full_output(notional=pos["notional"], lp_fix=pos["lp_fix"], \
+                        df_apy_mc, balances = mc.generate_full_output(df_apy=df_apy, date_original=df.index, tokens=pos["tokens"], notional=pos["notional"], lp_fix=pos["lp_fix"], \
                             lp_var=pos["lp_var"], tick_l=lower, tick_u=upper, fr_market=market, leverage_factor=lev)
                         
                         # Now run the initial methods in the PortfolioCalculator to generate the LP PnL and the associated trader fees
-                        tpc.portfolioCalculator.df_protocol = df_apy_mc
-                        tpc.portfolioCalculator.liquidity = tmc.marginCalculator.notional_to_liquidity(notional=pos["notional"], \
+                        pc.df_protocol = df_apy_mc
+                        pc.liquidity = notional_to_liquidity(notional=pos["notional"], \
                             tick_l=lower, tick_u=upper)
+
 
                         # Reset the PortfolioCalculator with the new FT and VT positions (these change in each fixed rate market, which can
                         # now also change with the token)
-                        tpc.portfolioCalculator.set_positions(balances)
+                        pc.set_positions(balances)
                         
                         # Start by generating the new LP PnL and net margins (n.b. check the notional assignment is correct)
-                        tpc.test_generate_lp_pnl_and_net_margin(tick_l=lower, tick_u=upper, lp_leverage_factor=lev)
+                        pc.generate_lp_pnl_and_net_margin(tick_l=lower, tick_u=upper, lp_leverage_factor=lev)
                         
                         # Now compute the protocol collected fees, the associated Sharpe ratios, and the fraction of
                         # undercollateralised events
-                        sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars = tpc.test_sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
+                        #sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars = pc.sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
+                        sharpes, undercols, l_factors, levs, the_apys = pc.sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["SRs"] = sharpes
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Frac Us"] = undercols
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Liq. fact."] = l_factors
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Leverage"] = levs
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["APYs"] = the_apys
-                        summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["LVaRs"] = l_vars
-                        summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["IVaRs"] = i_vars
+                        #summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["LVaRs"] = l_vars
+                        #summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["IVaRs"] = i_vars
                         fee_collector.append(df_apy_mc["protocol_fee"].mean()) 
                         df_apy_mc.to_csv(sim_dir+out_name+f"_F_value_{f}_{market}_{tick_name}_{fee}_full_risk_engine_output.csv")
 
@@ -204,6 +214,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     meanLev = normalise(flatLev).mean() 
     
     # Pick up the VaRs for regularisation (in their natural units)
+    """
     meanLVaR_LP = np.array(mp.dict_to_df(summary_dict, "LVaR LP", "LVaRs").stack().values).flatten().mean()
     meanIVaR_LP = np.array(mp.dict_to_df(summary_dict, "IVaR LP", "IVaRs").stack().values).flatten().mean()
     
@@ -212,6 +223,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     
     meanLVaR_VT = np.array(mp.dict_to_df(summary_dict, "LVaR VT", "LVaRs").stack().values).flatten().mean()
     meanIVaR_VT = np.array(mp.dict_to_df(summary_dict, "IVaR VT", "IVaRs").stack().values).flatten().mean()
+    """
 
     if debug:
         print("flatSR: ", flatSR)
@@ -223,19 +235,20 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
         print("meanU: ", meanU)
         print("meanLiq: ", meanLiq)
         print("meanLev: ", meanLev)
-        print("meanLVaR_LP", meanLVaR_LP)
-        print("meanLVaR_FT", meanLVaR_FT)
-        print("meanLVaR_VT", meanLVaR_VT)
-        print("meanIVaR_LP", meanIVaR_LP)
-        print("meanIVaR_FT", meanIVaR_FT)
-        print("meanIVaR_VT", meanIVaR_VT)
+        #print("meanLVaR_LP", meanLVaR_LP)
+        #print("meanLVaR_FT", meanLVaR_FT)
+        #print("meanLVaR_VT", meanLVaR_VT)
+        #print("meanIVaR_LP", meanIVaR_LP)
+        #print("meanIVaR_FT", meanIVaR_FT)
+        #print("meanIVaR_VT", meanIVaR_VT)
     
     if RUN_OPTUNA:
+        obj = -(meanU + meanLiq) - 10*int(meanLev > 100) - 10*int(meanLev< 10)
         # Maximise this -- use the VaRs for regularisation
-        l_var_lim, i_var_lim = 0.3, 0.3
-        obj = meanLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
-            - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
-            - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) 
+        #l_var_lim, i_var_lim = 0.3, 0.3
+        #obj = meanLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
+        #    - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
+        #    - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) 
         return obj
 
 def run_with_a_single_set_of_params(parser):

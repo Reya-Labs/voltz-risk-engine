@@ -5,7 +5,7 @@
 import json
 import pandas as pd
 import os
-from run_simulator import normalise, main
+from run_simulator import main
 from position_dict import position
 from MasterPlotter import MasterPlotter as mp
 

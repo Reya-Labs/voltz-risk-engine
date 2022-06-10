@@ -1,8 +1,6 @@
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from Calibrator import Calibrator # Parent class
-from MarginCalculator import SECONDS_IN_YEAR
+from Calibrator import Calibrator
+from utils.utils import SECONDS_IN_DAY, SECONDS_IN_YEAR
 
 """
     Simulator class inherits from Calibrator. It makes a calibrated object as input, with the
@@ -19,7 +17,7 @@ from MarginCalculator import SECONDS_IN_YEAR
     sigma scalings F -- this part of the calculation follows directly from litepaper, computing the closed-form
     solution for the APY bounds assuming a fixed volatility and CIR calibration. 
 """
-SECONDS_IN_DAY = SECONDS_IN_YEAR/365
+
 class Simulator(Calibrator):
     def __init__(self, df_protocol, a_values_dict=None, b_values_dict=None, sigma_dict=None, tMax=SECONDS_IN_YEAR):
         super().__init__(df_protocol)
@@ -94,15 +92,17 @@ class Simulator(Calibrator):
             
         tokens = [c for c in df_apy.columns if (("model" not in c) and ("Date" not in c))]
         # Calculate the appropriate time deltas
-        time_deltas = np.array([(len(df_apy)-1-i)*SECONDS_IN_DAY/self.tMax for i in range(len(df_apy))])
+        time_deltas = np.array([(len(df_apy)-i)*SECONDS_IN_DAY/self.tMax for i in range(len(df_apy))])
         for token in tokens:
             alpha = self.a_values_dict[token]*self.b_values_dict[token]
             beta = self.a_values_dict[token]
             sigma = self.sigma_dict[token]*F
+
             k = 4*alpha/sigma**2
         
             # Litepaper parameters
             time_factor = np.array([np.exp(-beta*dt) for dt in time_deltas])
+
             zeta = sigma**2 * (1-time_factor)/(4*beta)
             lamb = (1/zeta) * time_factor * df_apy[token + " model"]
         

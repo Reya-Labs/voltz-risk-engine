@@ -16,10 +16,9 @@
 """
 
 import math
-from tkinter import W
 import numpy as np
-from MarginCalculator import SECONDS_IN_YEAR
 from RiskMetrics import RiskMetrics
+from utils.utils import SECONDS_IN_YEAR
 
 class PortfolioCalculator:
     def __init__(self, df_protocol, lambdaFee, gammaFee, notional=1000, proportion_traded_per_day=0.15, \
@@ -400,3 +399,42 @@ class PortfolioCalculator:
             l_vars[f"LVaR LP: {token}"], i_vars[f"IVaR LP: {token}"] = l_var_lp, i_var_lp
 
         return l_vars, i_vars
+
+    def generate_lp_pnl_and_net_margin(self, tick_l=5000, tick_u=6000, lp_leverage_factor=1):
+
+        # liquidity, tickLower, tickUpper
+        # the output of this test script should give us what we need
+
+        # These are assumptions about the fixed tick sizes and 
+        # proportios traded each day. We will need to generalise these
+        # but for v1 these assumptions are sufficient.
+        tickLower = tick_l
+        tickUpper = tick_u
+
+        # Methods below update the df_protocol, so we won't return a separate DataFrame for now
+        # Generate lp pnl
+        self.generateLPPnl(tickLower, tickUpper)
+
+        # Generate lp net margin -- returns the updated DataFrame
+        self.generateLPNetMargin(lp_leverage_factor=lp_leverage_factor)
+
+        # Generate constant trader fee column
+        self.generateTraderFee()
+
+        # Get the APYs from the PnLs and the deposited margins
+        self.computeActorAPYs()
+
+        print("Completed LP PnL and net margin generation")
+    
+    def sharpe_ratio_undercol_events(self, tick_l=5000, tick_u=6000):
+
+        sharpes = self.computeSharpeRatio() # Sharpe ratio calculation
+        undercols = self.fractionUndercolEvents() # Undercollateralisation calculation
+        l_factors = self.computeLiquidationFactor() # Liquidation calculation
+        levs = self.computeLeverage(tickLower=tick_l, tickUpper=tick_u) # Leverage calculation
+        the_apys = self.returnAPYs() # APYs
+        #l_vars, i_vars = self.portfolioCalculator.computeVaRs(tickLower=tick_l, tickUpper=tick_u) #LVaRs and IVaRs
+
+        print("Completed Sharpe ratio and undercolateralisation calculations")
+
+        return sharpes, undercols, l_factors, levs, the_apys #, l_vars, i_vars
