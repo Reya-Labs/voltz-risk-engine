@@ -1,6 +1,6 @@
 import numpy as np
 from Calibrator import Calibrator
-from utils.utils import SECONDS_IN_DAY, SECONDS_IN_YEAR
+from utils import SECONDS_IN_DAY, SECONDS_IN_YEAR
 
 """
     Simulator class inherits from Calibrator. It makes a calibrated object as input, with the

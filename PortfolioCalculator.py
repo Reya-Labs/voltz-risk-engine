@@ -18,7 +18,7 @@
 import math
 import numpy as np
 from RiskMetrics import RiskMetrics
-from utils.utils import SECONDS_IN_YEAR
+from utils import SECONDS_IN_YEAR
 
 class PortfolioCalculator:
     def __init__(self, df_protocol, lambdaFee, gammaFee, notional=1000, proportion_traded_per_day=0.15, \

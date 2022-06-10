@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-from utils.constants import FT_ERROR, FT_FACTOR
+from constants import FT_ERROR, FT_FACTOR
 
 SECONDS_IN_DAY = 86400
 SECONDS_IN_WEEK = 604800
