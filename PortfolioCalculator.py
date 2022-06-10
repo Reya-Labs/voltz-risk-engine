@@ -359,6 +359,8 @@ class PortfolioCalculator:
     def computeVaRs(self, tickUpper, tickLower):
         l_vars = {}
         i_vars = {}
+        l_levs = {}
+        i_levs = {}
         notional_liquidity = self.liquidity_to_notional(tickUpper, tickLower)
         for token in self.tokens:
             notional_ft = np.abs(float(self.positions[token]["ftPosInit"].split("_")[1])) if self.positions!={} else np.abs(float(self.ftPosInit[1]))
@@ -387,19 +389,27 @@ class PortfolioCalculator:
             
             l_rep_lp, i_rep_lp = risk_LP.generate_replicates(N_replicates=100)
             l_var_lp, i_var_lp = risk_LP.lvar_and_ivar(alpha=95, l_rep=l_rep_lp, i_rep=i_rep_lp)
+            l_lev_lp, i_lev_lp = risk_LP.leverages(l_var=l_var_lp, i_var=i_var_lp)
             
-            l_rep_ft, i_rep_ft = risk_LP.generate_replicates(N_replicates=100)
+            l_rep_ft, i_rep_ft = risk_FT.generate_replicates(N_replicates=100)
             l_var_ft, i_var_ft = risk_FT.lvar_and_ivar(alpha=95, l_rep=l_rep_ft, i_rep=i_rep_ft)
+            l_lev_ft, i_lev_ft = risk_FT.leverages(l_var=l_var_ft, i_var=i_var_ft)
 
             l_rep_vt, i_rep_vt = risk_VT.generate_replicates(N_replicates=100)
             l_var_vt, i_var_vt = risk_VT.lvar_and_ivar(alpha=95, l_rep=l_rep_vt, i_rep=i_rep_vt)
+            l_lev_vt, i_lev_vt = risk_VT.leverages(l_var=l_var_vt, i_var=i_var_vt)
             
-            # Save the VaRS
+            # Save the VaRs
             l_vars[f"LVaR FT: {token}"], i_vars[f"IVaR FT: {token}"] = l_var_ft, i_var_ft
             l_vars[f"LVaR VT: {token}"], i_vars[f"IVaR VT: {token}"] = l_var_vt, i_var_vt
             l_vars[f"LVaR LP: {token}"], i_vars[f"IVaR LP: {token}"] = l_var_lp, i_var_lp
+            
+            # Save the maximum leverages
+            l_levs[f"L-Lev FT: {token}"], i_levs[f"I-LeV FT: {token}"] = l_lev_ft, i_lev_ft
+            l_levs[f"L-Lev VT: {token}"], i_levs[f"I-LeV VT: {token}"] = l_lev_vt, i_lev_vt
+            l_levs[f"L-Lev LP: {token}"], i_levs[f"I-LeV LP: {token}"] = l_lev_lp, i_lev_lp
 
-        return l_vars, i_vars
+        return l_vars, i_vars, l_levs, i_levs
 
     def generate_lp_pnl_and_net_margin(self, tick_l=5000, tick_u=6000, lp_leverage_factor=1):
 
@@ -434,8 +444,8 @@ class PortfolioCalculator:
         l_factors = self.computeLiquidationFactor() # Liquidation calculation
         levs = self.computeLeverage(tickLower=tick_l, tickUpper=tick_u) # Leverage calculation
         the_apys = self.returnAPYs() # APYs
-        l_vars, i_vars = self.computeVaRs(tickLower=tick_l, tickUpper=tick_u) #LVaRs and IVaRs
+        l_vars, i_vars, l_levs, i_levs = self.computeVaRs(tickLower=tick_l, tickUpper=tick_u) #LVaRs and IVaRs
 
         print("Completed Sharpe ratio and undercolateralisation calculations")
 
-        return sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars
+        return sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars, l_levs, i_levs

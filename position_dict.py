@@ -159,7 +159,7 @@ position = { # Specifiy the market parameters to run over
         "gamma_fee": 0.003,
         "tokens": ["USDC", "DAI"]
     },
-    "Generalised_position_many_ticks_USDC" : {
+    "Generalised_position_many_ticks_aUSDC" : {
         "lp_fix": 0,
         "lp_var": 0,
         "lp_liq": 50000,

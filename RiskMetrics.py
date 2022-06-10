@@ -41,7 +41,7 @@ class RiskMetrics():
         Tends to liquidation as the value -> 0
     """
     def liquidation(self):
-        return (self.margin_series.iloc[0] - self.liquidation_series) #/ self.liquidation_series
+        return (self.margin_series.iloc[0] - self.liquidation_series) / self.margin_series.iloc[0]
 
     """
         Insolvency time series, from input margin and 
@@ -50,7 +50,7 @@ class RiskMetrics():
         Tends to insolvency as value < 0
     """
     def insolvency(self):
-        return (self.pnl_series + self.margin_series.iloc[0]) #/ self.margin_series.iloc[0]
+        return (self.pnl_series + self.margin_series.iloc[0]) / self.margin_series.iloc[0]
 
     """
         Generate very small random numbers to decorate the liquidation and insolvency series with
@@ -129,8 +129,8 @@ class RiskMetrics():
         if (l_var is None) or (i_var is None):
             l_var, i_var = self.lvar_and_ivar()
         
-        l_lev = self.notional / (self.liquidation_series.iloc[time_horizon] + l_var)
-        i_lev = self.notional / (i_var - self.pnl_series.iloc[0])
+        l_lev = self.notional / (self.liquidation_series.iloc[time_horizon] + l_var*self.margin_series.iloc[0])
+        i_lev = self.notional / (i_var*self.margin_series.iloc[0] - self.pnl_series.iloc[0])
         return l_lev, i_lev
 
     """
