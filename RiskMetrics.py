@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
 """
 bashtage/arch: Release 4.18 (Version v4.18). Zenodo. https://doi.org/10.5281/zenodo.593254
@@ -13,8 +14,7 @@ from arch.bootstrap import CircularBlockBootstrap, optimal_block_length
 """
 class RiskMetrics():
     
-    def __init__(self, df, notional, liquidation_series, margin_series, pnl_series, \
-                    liquidation=None, insolvency=None, pool_size=None):
+    def __init__(self, df, notional, liquidation_series, margin_series, pnl_series, pool_size=None):
         self.z_scores = {
             95: 1.96,
             99: 2.58
@@ -31,17 +31,15 @@ class RiskMetrics():
         self.liquidation_series = df[liquidation_series]
         self.margin_series = df[margin_series]
         self.pnl_series = df[pnl_series]
-
-        if liquidation is None:
-            self.liquidation = self.liquidation().replace([np.inf, -np.inf], np.nan, inplace=True)
-        else:
-            self.liquidation = liquidation
-
-        if insolvency is None:
-            self.insolvency = self.insolvency().replace([np.inf, -np.inf], np.nan, inplace=True)
-        else:
-            self.insolvency = insolvency
-
+        """
+        the_liquidation = self.liquidation()
+        the_insolvency = self.insolvency()
+        self.liquidation = the_liquidation.replace([np.inf, -np.inf], np.nan, inplace=True)
+        self.insolvency = the_insolvency.replace([np.inf, -np.inf], np.nan, inplace=True)
+        """
+        
+        self.liquidation = self.liquidation()
+        self.insolvency = self.insolvency()
 
     """
         Liquidation time series, from input margin and 
@@ -50,7 +48,7 @@ class RiskMetrics():
         Tends to liquidation as the value -> 0
     """
     def liquidation(self):
-        return (self.margin_series.iloc[0] - self.liquidation_series) / self.liquidation_series
+        return (self.margin_series.iloc[0] - self.liquidation_series) #/ self.liquidation_series
 
     """
         Insolvency time series, from input margin and 
@@ -59,8 +57,18 @@ class RiskMetrics():
         Tends to insolvency as value < 0
     """
     def insolvency(self):
-        return (self.pnl_series + self.margin_series.iloc[0]) / self.margin_series.iloc[0]
+        return (self.pnl_series + self.margin_series.iloc[0]) #/ self.margin_series.iloc[0]
 
+    """
+        Generate very small random numbers to decorate the liquidation and insolvency series with
+        (necessary to avoid NaNs in the replicater generation)
+    """
+    @staticmethod
+    def get_random(): 
+        exp = random.randint(-5, -2) 
+        significand = 0.9 * random.random() + 0.1 
+        return significand * 10**exp 
+    
     """
         Time series block bootstrapping to produce N_replicates
         number of replicates. Assumes the autocorrelation structure of the
@@ -71,16 +79,19 @@ class RiskMetrics():
 
         self.liquidation.dropna(inplace=True)
         self.insolvency.dropna(inplace=True)
-
+        
+        liq = np.array([l+self.get_random() for l in self.liquidation.values])
+        ins = np.array([i+self.get_random() for i in self.insolvency.values])
         # Optimal block lengths    
-        time_delta_l = optimal_block_length(self.liquidation)["circular"].values[0]
-        time_delta_i = optimal_block_length(self.insolvency)["circular"].values[0]
+        time_delta_l = optimal_block_length(liq)["circular"].values[0]
+        time_delta_i = optimal_block_length(ins)["circular"].values[0]
 
         # Block bootstrapping
-        l_bs = CircularBlockBootstrap(block_size=time_delta_l, x=self.liquidation, random_state=rs)
-        i_bs = CircularBlockBootstrap(block_size=time_delta_i, x=self.insolvency, random_state=rs)
-        l_rep = [data[1]["x"].reset_index().drop(columns=["index"]).values.flatten() for data in l_bs.bootstrap(N_replicates)]
-        i_rep = [data[1]["x"].reset_index().drop(columns=["index"]).values.flatten() for data in i_bs.bootstrap(N_replicates)]
+        l_bs = CircularBlockBootstrap(block_size=int(time_delta_l)+1, x=liq, random_state=rs)
+        i_bs = CircularBlockBootstrap(block_size=int(time_delta_i)+1, x=ins, random_state=rs)
+        
+        l_rep = [data[1]["x"].flatten() for data in l_bs.bootstrap(N_replicates)]
+        i_rep = [data[1]["x"].flatten() for data in i_bs.bootstrap(N_replicates)]
 
         return l_rep, i_rep
 
