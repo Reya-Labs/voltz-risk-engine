@@ -17,7 +17,7 @@ RUN_OPTUNA = False
 DF_TO_OPTIMIZE = "aave"
 
 # Positions
-POSITION = "Generalised_position_many_ticks_aUSDC" 
+POSITION = "Generalised_position_many_ticks_USDC_with_std" 
 pos = position[POSITION]
 top_dir = f"./simulations/{POSITION}/"
 
@@ -213,6 +213,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     meanLiq = 0 if np.all(flatLiq==0) else normalise(flatLiq).mean() 
     meanFee =  np.array(fee_collector).mean() 
     meanLev = normalise(flatLev).mean() 
+    stdLev = normalise(flatLev).std() 
     
     # Pick up the VaRs for regularisation (in their natural units)
     meanLVaR_LP = np.array(mp.dict_to_df(summary_dict, "LVaR LP", "LVaRs").stack().values).flatten().mean()
@@ -245,7 +246,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
         #obj = -(meanU + meanLiq) - 10*int(meanLev > 100) - 10*int(meanLev< 10)
         # Maximise this -- use the VaRs for regularisation
         l_var_lim, i_var_lim = 0.3, 0.3
-        obj = meanLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
+        obj = meanLev - stdLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
             - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
             - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) 
         return obj
@@ -339,8 +340,8 @@ def run_param_optimization(parser):
     fig = optuna.visualization.plot_optimization_history(study)
     fig.write_image(out_dir+f"optuna_history_{DF_TO_OPTIMIZE}.png")
 
-    fig = optuna.visualization.plot_param_importances(study)
-    fig.write_image(out_dir+f"optuna_importances_{DF_TO_OPTIMIZE}.png")
+    #fig = optuna.visualization.plot_param_importances(study)
+    #fig.write_image(out_dir+f"optuna_importances_{DF_TO_OPTIMIZE}.png")
     
     with open(out_dir+f"optimised_parameters_{DF_TO_OPTIMIZE}.json", "w") as fp:
         json.dump(trial.params, fp, indent=4)
