@@ -159,20 +159,33 @@ position = { # Specifiy the market parameters to run over
         "gamma_fee": 0.003,
         "tokens": ["USDC", "DAI"]
     },
-    "Generalised_position_many_ticks_aUSDC" : {
+    "Generalised_position_many_ticks_USDC_with_std" : {
         "lp_fix": 0,
         "lp_var": 0,
         "lp_liq": 50000,
-        "rate_ranges": [(0.002, 1), (1, 10), (10, 500),
-                        (500, 990), (990, 999), (999, 999.998)],
+        "rate_ranges": [(0.002, 1), (1, 3), (3, 10)],
         "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
+        "f_values": [0.5, 1, 2, 3, 5], 
         "leverage_factors": [1],
         "notional": 1000,
         "pool_size": 60,
         "gamma_fee": 0.003,
         "gamma_fees": None,
         "tokens": ["USDC"]
+    },
+    "Generalised_position_many_ticks_DAI_with_std" : {
+        "lp_fix": 0,
+        "lp_var": 0,
+        "lp_liq": 50000,
+        "rate_ranges": [(0.002, 1), (1, 3), (3, 10)],
+        "fr_markets": ["neutral", "bear", "bull"],
+        "f_values": [0.5, 1, 2, 3, 5], 
+        "leverage_factors": [1],
+        "notional": 1000,
+        "pool_size": 60,
+        "gamma_fee": 0.003,
+        "gamma_fees": None,
+        "tokens": ["DAI"]
     },
     "test_position" : {
         "lp_fix": 0,

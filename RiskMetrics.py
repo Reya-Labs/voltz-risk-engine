@@ -125,12 +125,12 @@ class RiskMetrics():
     """
         Convert VaRs to corresponding leverage constraints
     """
-    def leverages(self, l_var=None, i_var=None, time_horizon=0):
+    def leverages(self, l_var=None, i_var=None):
         if (l_var is None) or (i_var is None):
             l_var, i_var = self.lvar_and_ivar()
         
-        l_lev = self.notional / (self.liquidation_series.iloc[time_horizon] + l_var*self.margin_series.iloc[0])
-        i_lev = self.notional / (i_var*self.margin_series.iloc[0] - self.pnl_series.iloc[0])
+        l_lev = self.notional * (1-l_var) / self.liquidation_series.iloc[0]
+        i_lev = self.notional * (i_var-1) / self.pnl_series.iloc[-1]
         return l_lev, i_lev
 
     """

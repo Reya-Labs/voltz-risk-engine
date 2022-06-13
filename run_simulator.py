@@ -66,9 +66,9 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     sim.set_b_values(b_values=b_values)
     sim.set_volatility(sigma_values=sigma_values)
     
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-    # # # 2. Instantiate the MarginCalculator through its TestMarginCalculator class. Will update downstream in the simulation    # #
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    # # # 2. Instantiate the MarginCalculator. Will update downstream in the simulation # # #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     mc = MarginCalculator(
         apyUpperMultiplier=tau_u, 
         apyLowerMultiplier=tau_d, 
@@ -93,9 +93,9 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     # tmc.tokens = pos["tokens"] # Specific tokens in the pool
     # tmc.date_original = df.index # Need to keep record of the original time here so it's not overwritten in the MarginCalculator
 
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # 3. Instantiate the PortfolioCalculator through its TestPortfolioCalculator class  # # #
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # # # 3. Instantiate the PortfolioCalculator  # # #
+    # # # # # # # # # # # # # # # # # # # # # # # # # #
     
     pc = PortfolioCalculator(
             df_protocol=None,
@@ -243,9 +243,8 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
         print("meanIVaR_VT", meanIVaR_VT)
     
     if RUN_OPTUNA:
-        #obj = -(meanU + meanLiq) - 10*int(meanLev > 100) - 10*int(meanLev< 10)
         # Maximise this -- use the VaRs for regularisation
-        l_var_lim, i_var_lim = 0.3, 0.3
+        l_var_lim, i_var_lim = 0.0, 0.0
         obj = meanLev - stdLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
             - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
             - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) 

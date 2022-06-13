@@ -405,9 +405,9 @@ class PortfolioCalculator:
             l_vars[f"LVaR LP: {token}"], i_vars[f"IVaR LP: {token}"] = l_var_lp, i_var_lp
             
             # Save the maximum leverages
-            l_levs[f"L-Lev FT: {token}"], i_levs[f"I-LeV FT: {token}"] = l_lev_ft, i_lev_ft
-            l_levs[f"L-Lev VT: {token}"], i_levs[f"I-LeV VT: {token}"] = l_lev_vt, i_lev_vt
-            l_levs[f"L-Lev LP: {token}"], i_levs[f"I-LeV LP: {token}"] = l_lev_lp, i_lev_lp
+            l_levs[f"L-Lev FT: {token}"], i_levs[f"I-Lev FT: {token}"] = l_lev_ft, i_lev_ft
+            l_levs[f"L-Lev VT: {token}"], i_levs[f"I-Lev VT: {token}"] = l_lev_vt, i_lev_vt
+            l_levs[f"L-Lev LP: {token}"], i_levs[f"I-Lev LP: {token}"] = l_lev_lp, i_lev_lp
 
         return l_vars, i_vars, l_levs, i_levs
 
