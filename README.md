@@ -55,17 +55,17 @@ The position of interest for simulation can be defined in the ```position_dict.p
 to the following properties by way of an example from the ```position_dict.py```:
 
 ```
-    "Generalised_position_many_ticks_USDC_with_std" : { ---> Name of the position, called in the run_simulator.py
-        "rate_ranges": [(0.002, 1), (1, 3), (3, 10)], ---> List of LP pool tick ranges in units of rates in percentage points i.e (tick_upper, tick_lower)
-        "fr_markets": ["neutral", "bear", "bull"], ---> Three diffeent rate market conditions
-        "f_values": [0.5, 1, 2, 3, 5], ---> Different volatility scalings, F, where scaled volatility = F * historical volatility
-        "leverage_factors": [1], ---> Amount of leverage to apply, which can be a list of multiple values
-        "notional": 1000, ---> Notional amount in IRS pool, e.g. net 1000 tokens acoss FTs and VTs
-        "pool_size": 60, ---> Length of IRS pool, e.g. 60 days
-        "gamma_fee": 0.003, ---> The gamma fee parameter, e.g. 0.003 % of LP notional supplied
-        "gamma_fees": None, ---> Can also provide a list of possible gamma_fee values, ot just set to None
-        "tokens": ["USDC"] ---> List of tokens to consider
-    },
+"Generalised_position_many_ticks_USDC_with_std" : { ---> Name of the position, called in the run_simulator.py
+    "rate_ranges": [(0.002, 1), (1, 3), (3, 10)], ---> List of LP pool tick ranges in units of rates in percentage points i.e (tick_upper, tick_lower)
+    "fr_markets": ["neutral", "bear", "bull"], ---> Three diffeent rate market conditions
+    "f_values": [0.5, 1, 2, 3, 5], ---> Different volatility scalings, F, where scaled volatility = F * historical volatility
+    "leverage_factors": [1], ---> Amount of leverage to apply, which can be a list of multiple values
+    "notional": 1000, ---> Notional amount in IRS pool, e.g. net 1000 tokens acoss FTs and VTs
+    "pool_size": 60, ---> Length of IRS pool, e.g. 60 days
+    "gamma_fee": 0.003, ---> The gamma fee parameter, e.g. 0.003 % of LP notional supplied
+    "gamma_fees": None, ---> Can also provide a list of possible gamma_fee values, ot just set to None
+    "tokens": ["USDC"] ---> List of tokens to consider
+},
 
 ```
 
