@@ -125,8 +125,8 @@ r_init_im: Initial rate for the initial margin in the counterfactual unwind
 lambda_fee: Fraction of LP profit the protocol takes
 gamma_fee: Fraction of (time-weighted) notional that LP takes
 lookback:  Window over which the historic APY moving average is calculated
-a_factor: Multiplier to the $a$ CIR parameter, controlling the speed of APY mean-reversion
-b_factor: Multiplier to the $b$ CIR parameter, controlling the central value of APY mean-reversion
+a_factor: Multiplier to the a CIR parameter, controlling the speed of APY mean-reversion
+b_factor: Multiplier to the b CIR parameter, controlling the central value of APY mean-reversion
 ```
 
 ## Unit Tests
