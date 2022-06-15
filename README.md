@@ -7,7 +7,11 @@ of the Voltz interest rate swap (IRS) protocol and associated Smart Contract log
 3) The modelling of different fixed-rate market conditions, actor leverages, and market APY volatilities.
 4) All protocol parameters defined in the litepaper are implemented, and can be set by the user.
 5) The use of ```Optuna``` to perform optimisation of the protocol parameters and fee structure parameters. 
-6) A repository of scraped historic APY data from Aave, Compound, Euler, and other popular DeFi platforms.  
+6) A repository of scraped historic APY data from Aave, Compound, Euler, and other popular DeFi platforms. 
+7) Value-at-risk implmentations through the ```RiskMetrics``` class. 
+
+For further details on the methology behind the Risk Engine and its associated optimisation, please see the dedictaed
+Risk Engine explainer article at ```<TO BE ADDED VERY SOON>```.
 
 ## Extracting and Scraping Data
 ``` APYExtractor.py```: Scrapes relevant APY time series data from LoanScan (https://loanscan.io/), saving them as a Pandas DataFrame
@@ -35,6 +39,35 @@ fraction of undercollarerallised events in the IRS pool, flags for liquidatable 
 
 ```MasterPlotter.py```: A collection of succinct methods for plotting the results of the IRS pool out put time series, including the margins,
 positions, leverages, APYs, and associated Sharpe ratios for different market conditions. 
+
+## Simulated Risk Management
+The risk managment of the simulated IRS pools is handled by one major class:
+
+ ```RiskMetrics.py```: the ```RiskMetrics``` class implements value-at-risk measures from the
+block-bootstrapped estimated probability density functions for the actor liquidation and insolvecy rates, across a variety of
+market conditions. All replicate generation, liquidation and insolvency estimation, and final LVaR and IVaR calculations are 
+handled here. A wrapper function around this class is called in the ```PortfolioCalculator```, which is subsequently handled
+when running the ```run_simulator.py```. 
+
+## Defining the position of interest
+The position of interest for simulation can be defined in the ```position_dict.py``` dictionary, and subsequently called in the
+```run_simulator```. To fully specifiy a position for simulation, a sub-dictionary can be defined in ```position_dict.py```, adhering 
+to the following properties by way of an example from the ```position_dict.py```:
+
+```
+    "Generalised_position_many_ticks_USDC_with_std" : { ---> Name of the position, called in the run_simulator.py
+        "rate_ranges": [(0.002, 1), (1, 3), (3, 10)], ---> List of LP pool tick ranges in units of rates in percentage points i.e (tick_upper, tick_lower)
+        "fr_markets": ["neutral", "bear", "bull"], ---> Three diffeent rate market conditions
+        "f_values": [0.5, 1, 2, 3, 5], ---> Different volatility scalings, F, where scaled volatility = F * historical volatility
+        "leverage_factors": [1], ---> Amount of leverage to apply, which can be a list of multiple values
+        "notional": 1000, ---> Notional amount in IRS pool, e.g. net 1000 tokens acoss FTs and VTs
+        "pool_size": 60, ---> Length of IRS pool, e.g. 60 days
+        "gamma_fee": 0.003, ---> The gamma fee parameter, e.g. 0.003 % of LP notional supplied
+        "gamma_fees": None, ---> Can also provide a list of possible gamma_fee values, ot just set to None
+        "tokens": ["USDC"] ---> List of tokens to consider
+    },
+
+```
 
 ## Calling the Risk Engine
 The main Risk Engine classes are controlled through the ```run_simulator.py``` script, which takes user-defined values of the protocol 
@@ -79,9 +112,31 @@ optional arguments:
   -d, --debug           Debug mode
 ```
 
+These arguments map to the free parameters of the Risk Engine, as defined below.
+
+```
+$\tau_u$: APY upper bound multiplier for liquidation margin
+$\tau_{d}$ (`tau_d`): APY lower bound multiplier for liquidation margin
+$\gamma_\mathrm{unwind}$ (`gamma_unwind`): Decay parameter for counterfactual unwind
+$\Delta_\mathrm{lm}$ (`dev_lm`): Rate deviation multiplier for liquidation margin in the counterfactual unwind
+$\Delta_\mathrm{im}$ (`dev_im`): Rate deviation parameter for initial margin in the counterfactual unwind
+$r_\mathrm{init, ~lm}$ (`r_init_lm`): Initial rate for liquidation margin in the counterfactual unwind
+$r_\mathrm{init, ~ im}$ (`r_init_im`): Initial rate for the initial margin in the counterfactual unwind
+$\lambda_\mathrm{fee}$ (`lambda_fee`): Fraction of LP profit the protocol takes
+$\gamma_\mathrm{fee}$ (`gamma_fee`): Fraction of (time-weighted) notional that LP takes
+$L$ (`lookback`):  Window over which the historic APY moving average is calculated
+$a_{f}$ (`a_factor`): Multiplier to the $a$ CIR parameter, controlling the speed of APY mean-reversion
+$b_{f}$ (`b_factor`): Multiplier to the $b$ CIR parameter, controlling the central value of APY mean-reversion
+```
+
 ## Unit Tests
 The unit testing of different classes is handled by the various ```Test{class}.py``` scripts. These are also called in the ```run_simulator.py``` for
 conveniece of instantiating the relevant methods from the main classes described above. 
+
+## Additional functionality
+Additional functions for dataframe processing, liquidity index/APY conversion, margin requirement wrapping, and handling raw data are 
+defined in the ```utils.py``` and ```RNItoAPY.py``` scripts. ```run_parameter_sensitivities.py``` is an investigative script which studies
+the sensitivity of the Risk Engine optimisation function to the underlying optimised free parameters. 
 
 # Terms & Conditions
 The Voltz Protocol, and any products or services associated therewith, is offered only to persons (aged 18 years or older) or entities who are not residents of, citizens of, are incorporated in, owned or controlled by a person or entity in, located in, or have a registered office or principal place of business in any “Restricted Territory.”
