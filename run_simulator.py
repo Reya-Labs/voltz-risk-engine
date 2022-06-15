@@ -8,8 +8,8 @@ import optuna
 import numpy as np
 # Positions -- want to disentangle positions from parameters
 from position_dict import position
-from utils.constants import ALPHA, BETA, MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS, SIGMA_SQUARED, XI_LOWER, XI_UPPER
-from utils.utils import SECONDS_IN_YEAR, fixedRateToTick, notional_to_liquidity
+from constants import ALPHA, BETA, MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS, SIGMA_SQUARED, XI_LOWER, XI_UPPER
+from utils import SECONDS_IN_YEAR, fixedRateToTick, notional_to_liquidity
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
