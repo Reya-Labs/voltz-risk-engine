@@ -78,7 +78,7 @@ def notional_to_liquidity(notional, tick_l, tick_u):
     return notional/(sqrt_upper - sqrt_lower)
 
 
-def date_to_unix_time(df_input, date_original):
+def date_to_unix_time(df_input, date_original, separator=" ", timezone_separator=None):
     import datetime
     import time
 
@@ -87,8 +87,9 @@ def date_to_unix_time(df_input, date_original):
 
     date_time = []
     for date in date_original:
-        y, m, d = [int(date.split(" ")[0].split("-")[i]) for i in range(3)]
-        h, mt, s = [int(date.split(" ")[1].split(":")[i])
+        cleanDate = date.split(timezone_separator)[0] if timezone_separator is not None else date
+        y, m, d = [int(cleanDate.split(separator)[0].split("-")[i]) for i in range(3)]
+        h, mt, s = [int(cleanDate.split(separator)[1].split(":")[i])
                     for i in range(3)]
         date_time.append(datetime.datetime(y, m, d, h, mt, s))
 
