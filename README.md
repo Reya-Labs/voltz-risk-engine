@@ -66,7 +66,6 @@ to the following properties by way of an example from the ```position_dict.py```
     "gamma_fees": None, ---> Can also provide a list of possible gamma_fee values, ot just set to None
     "tokens": ["USDC"] ---> List of tokens to consider
 },
-
 ```
 
 ## Calling the Risk Engine
