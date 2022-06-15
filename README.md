@@ -115,18 +115,18 @@ optional arguments:
 These arguments map to the free parameters of the Risk Engine, as defined below.
 
 ```
-$\tau_u$: APY upper bound multiplier for liquidation margin
-$\tau_{d}$ (`tau_d`): APY lower bound multiplier for liquidation margin
-$\gamma_\mathrm{unwind}$ (`gamma_unwind`): Decay parameter for counterfactual unwind
-$\Delta_\mathrm{lm}$ (`dev_lm`): Rate deviation multiplier for liquidation margin in the counterfactual unwind
-$\Delta_\mathrm{im}$ (`dev_im`): Rate deviation parameter for initial margin in the counterfactual unwind
-$r_\mathrm{init, ~lm}$ (`r_init_lm`): Initial rate for liquidation margin in the counterfactual unwind
-$r_\mathrm{init, ~ im}$ (`r_init_im`): Initial rate for the initial margin in the counterfactual unwind
-$\lambda_\mathrm{fee}$ (`lambda_fee`): Fraction of LP profit the protocol takes
-$\gamma_\mathrm{fee}$ (`gamma_fee`): Fraction of (time-weighted) notional that LP takes
-$L$ (`lookback`):  Window over which the historic APY moving average is calculated
-$a_{f}$ (`a_factor`): Multiplier to the $a$ CIR parameter, controlling the speed of APY mean-reversion
-$b_{f}$ (`b_factor`): Multiplier to the $b$ CIR parameter, controlling the central value of APY mean-reversion
+tau_u: APY upper bound multiplier for liquidation margin
+tau_d: APY lower bound multiplier for liquidation margin
+gamma_unwind: Decay parameter for counterfactual unwind
+dev_lm: Rate deviation multiplier for liquidation margin in the counterfactual unwind
+dev_im: Rate deviation parameter for initial margin in the counterfactual unwind
+r_init_lm: Initial rate for liquidation margin in the counterfactual unwind
+r_init_im: Initial rate for the initial margin in the counterfactual unwind
+lambda_fee: Fraction of LP profit the protocol takes
+gamma_fee: Fraction of (time-weighted) notional that LP takes
+lookback:  Window over which the historic APY moving average is calculated
+a_factor: Multiplier to the $a$ CIR parameter, controlling the speed of APY mean-reversion
+b_factor: Multiplier to the $b$ CIR parameter, controlling the central value of APY mean-reversion
 ```
 
 ## Unit Tests
