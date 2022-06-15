@@ -1,4 +1,4 @@
-position = { # Specifiy the market parameters to run over
+position = { # Specifiy the market parameters to run over -- many different examples provided below
     "Generalised_position_0.002_1_USDC" : {
         "lp_fix": 0,
         "lp_var": 0,
@@ -27,54 +27,6 @@ position = { # Specifiy the market parameters to run over
         "leverage_factors":[1],
         "tokens": ["USDC"]
     },
-    "Generalised_position_10_500_USDC" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(10, 500)],
-        "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.003,
-        "tokens": ["USDC"]
-    },
-    "Generalised_position_500_990_USDC" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(500, 990)],
-        "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.003,
-        "tokens": ["USDC"]
-    },
-    "Generalised_position_990_999_USDC" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(990, 999)],
-        "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.003,
-        "tokens": ["USDC"]
-    },
-    "Generalised_position_999_999.998_USDC" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(999, 999.998)],
-        "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.003,
-        "tokens": ["USDC"]
-    },
     "Generalised_position_0.002_1_DAI" : {
         "lp_fix": 0,
         "lp_var": 0,
@@ -85,6 +37,8 @@ position = { # Specifiy the market parameters to run over
         "notional": 1000,
         "pool_size": 60,
         "gamma_fee": 0.003,
+        "leverage_factors": [1],
+        "gamma_fees": None,
         "tokens": ["DAI"]
     },
     "Generalised_position_1_10_DAI" : {
@@ -97,54 +51,8 @@ position = { # Specifiy the market parameters to run over
         "notional": 1000,
         "pool_size": 60,
         "gamma_fee": 0.003,
-        "tokens": ["DAI"]
-    },
-    "Generalised_position_10_500_DAI" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(10, 500)],
-        "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.003,
-        "tokens": ["DAI"]
-    },
-    "Generalised_position_500_990_DAI" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(500, 990)],
-        "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.003,
-        "tokens": ["DAI"]
-    },
-    "Generalised_position_990_999_DAI" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(990, 999)],
-        "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.003,
-        "tokens": ["DAI"]
-    },
-    "Generalised_position_999_999.998_DAI" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(999, 999.998)],
-        "fr_markets": ["neutral", "bear", "bull"],
-        "f_values": [0.5, 1, 2, 5, 7.5, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.001,
+        "leverage_factors": [1],
+        "gamma_fees": None,
         "tokens": ["DAI"]
     },
     "Generalised_position_trials" : {
@@ -157,6 +65,8 @@ position = { # Specifiy the market parameters to run over
         "notional": 1000,
         "pool_size": 60,
         "gamma_fee": 0.003,
+        "leverage_factors": [1],
+        "gamma_fees": None,
         "tokens": ["USDC", "DAI"]
     },
     "Generalised_position_many_ticks_USDC_with_std" : {
@@ -187,198 +97,6 @@ position = { # Specifiy the market parameters to run over
         "gamma_fees": None,
         "tokens": ["DAI"]
     },
-    "test_position" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1, 10, 20], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0003,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.001_dep_0.1" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.001,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.001_dep_0.5" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.001,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.001_dep_1" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.001,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.001_dep_10" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.001,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.001_dep_100" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.001,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0007_dep_0.1" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0007,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0007_dep_0.5" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0007,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0007_dep_1" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0007,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0007_dep_10" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0007,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0007_dep_100" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0007,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0003_dep_0.1" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0003,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0003_dep_0.5" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0003,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0003_dep_1" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0003,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0003_dep_10" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0003,
-        "tokens": ["USDC"]
-    },
-    "test_position_0.0003_dep_100" : {
-        "lp_fix": 0,
-        "lp_var": 0,
-        "lp_liq": 50000,
-        "rate_ranges": [(1, 10)], 
-        "fr_markets": ["neutral"],
-        "f_values": [1], 
-        "notional": 1000,
-        "pool_size": 60,
-        "gamma_fee": 0.0003,
-        "tokens": ["USDC"]
-    },
     "leverage_positions_USDC" : {
         "lp_fix": 0,
         "lp_var": 0,
@@ -388,11 +106,9 @@ position = { # Specifiy the market parameters to run over
         "f_values": [1], 
         "notional": 1000,
         "pool_size": 60,
-        #"leverage_factors": [1],
         "leverage_factors": [1, 1.5, 2.5, 5, 7.5, 10, 25, 50, 75, 100, 500],
         "gamma_fee": 0.003,
-        "gamma_fees": None,
-        #"gamma_fees": [0.0003, 0.0005, 0.0007, 0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03],
+        "gamma_fees": [0.0003, 0.0005, 0.0007, 0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03],
         "tokens": ["USDC"]
     },
     "leverage_positions_DAI" : {
@@ -405,9 +121,8 @@ position = { # Specifiy the market parameters to run over
         "notional": 1000,
         "pool_size": 60,
         "leverage_factors": [1, 1.5, 2.5, 5, 7.5, 10, 25, 50, 75, 100, 500],
-        "gamma_fee": 0.0003,
-        #"gamma_fees": [0.0003, 0.0005, 0.0007, 0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03],
-        "gamma_fees": None,
+        "gamma_fee": 0,
+        "gamma_fees": [0.0003, 0.0005, 0.0007, 0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03],
         "tokens": ["DAI"]
     },
 }

@@ -17,7 +17,7 @@ RUN_OPTUNA = False
 DF_TO_OPTIMIZE = "aave"
 
 # Positions
-POSITION = "Generalised_position_many_ticks_USDC_with_std" 
+POSITION = "Generalised_position_many_ticks_USDC_with_std" # Example set of positions to simulate
 pos = position[POSITION]
 top_dir = f"./simulations/{POSITION}/"
 
@@ -291,12 +291,13 @@ def objective(trial):
     a_factor = trial.suggest_categorical("a_factor", np.linspace(0.5, 5, 50).tolist())
     b_factor = trial.suggest_categorical("b_factor", np.linspace(0.3, 3, 50).tolist())
     lookback = trial.suggest_categorical("lookback", np.arange(3, int(pos["pool_size"]/2), 1).tolist()) 
-    #lambda_fee = trial.suggest_categorical("lambda_fee", np.linspace(0.001, 0.1, 100).tolist()) 
-    #gamma_fee = trial.suggest_categorical("gamma_fee", np.linspace(0.0003, 0.03, 100).tolist()) 
+    lambda_fee = trial.suggest_categorical("lambda_fee", np.linspace(0.001, 0.1, 100).tolist()) 
+    gamma_fee = trial.suggest_categorical("gamma_fee", np.linspace(0.0003, 0.03, 100).tolist()) 
     
     # Default protocol fee constraints for v1
-    lambda_fee = 0 # i.e. no protocol collected fees -- update this
-    gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
+    # Here we summarise default fee struccture parameters for v1
+    # lambda_fee = 0 # i.e. no protocol collected fees -- update this
+    # gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
 
     if DF_TO_OPTIMIZE=="aave":
         obj = main(in_name="AaveVariable", out_name="df_AaveVariable_APY_model_and_bounds_optimised",
@@ -339,8 +340,8 @@ def run_param_optimization(parser):
     fig = optuna.visualization.plot_optimization_history(study)
     fig.write_image(out_dir+f"optuna_history_{DF_TO_OPTIMIZE}.png")
 
-    #fig = optuna.visualization.plot_param_importances(study)
-    #fig.write_image(out_dir+f"optuna_importances_{DF_TO_OPTIMIZE}.png")
+    fig = optuna.visualization.plot_param_importances(study)
+    fig.write_image(out_dir+f"optuna_importances_{DF_TO_OPTIMIZE}.png")
     
     with open(out_dir+f"optimised_parameters_{DF_TO_OPTIMIZE}.json", "w") as fp:
         json.dump(trial.params, fp, indent=4)
