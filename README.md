@@ -11,7 +11,7 @@ of the Voltz interest rate swap (IRS) protocol and associated Smart Contract log
 7) Value-at-risk implmentations through the ```RiskMetrics``` class. 
 
 For further details on the methology behind the Risk Engine and its associated optimisation, please see the dedictaed
-Risk Engine explainer article at ```<TO BE ADDED VERY SOON>```.
+Risk Engine explainer article at https://www.voltz.xyz/resource-centre/safe-leverage-on-voltz.
 
 ## Extracting and Scraping Data
 ``` APYExtractor.py```: Scrapes relevant APY time series data from LoanScan (https://loanscan.io/), saving them as a Pandas DataFrame
