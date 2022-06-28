@@ -14,11 +14,11 @@ from RNItoAPY import *
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
-RUN_OPTUNA = False
-DF_TO_OPTIMIZE = "aave"
+RUN_OPTUNA = True
+DF_TO_OPTIMIZE = "rocket"
 
 # Positions
-POSITION = "Generalised_position_many_ticks_USDC_with_std" # Example set of positions to simulate
+POSITION = "Generalised_position_many_ticks_rETH_with_std" # Example set of positions to simulate
 pos = position[POSITION]
 top_dir = f"./simulations/{POSITION}/"
 
@@ -28,7 +28,7 @@ def normalise(array):
     else:
         raise Exception("ERROR: minimum and maximum values coincide in array normalisation. Check inputs!")
 
-def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3, lookback=30, \
+def main(out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3, lookback=30, \
     r_init_lm=0.3, r_init_im=0.1, lambda_fee=0.1, gamma_fee=0.003, a_factor=1, b_factor=1, \
     write_all_out=False, sim_dir=None, debug=False):
 
@@ -44,8 +44,8 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
     df_raw = pd.read_csv(f"./rni_historical_data/{DF_TO_OPTIMIZE}_{token}.csv")
     # Get APYs from the raw liquidity indices
     df = getPreparedRNIData(df_raw)
-    df = getFrequentData(df, frequency=lookback)
-    df = getDailyApy([[token, df]], lookback=5)
+    df = getFrequentData(df, frequency=int(lookback*2))
+    df = getDailyApy([[token, df]], lookback=lookback)
 
     df.set_index("date", inplace=True)
     
@@ -276,11 +276,7 @@ def run_with_a_single_set_of_params(parser):
     # Defining dictionary for the tuneable parameters
     tuneable_dict = dict((k, v) for k, v in vars(tuneables).items() if v is not None)
     print(tuneable_dict)
-    
-    if DF_TO_OPTIMIZE=="aave":
-        main(in_name="AaveVariable", out_name="df_AaveVariable_APY_model_and_bounds", **tuneable_dict)
-    else:
-        main(in_name="CompoundV2", out_name="df_CompoundV2_APY_model_and_bounds", **tuneable_dict)
+    main(out_name=f"df_{DF_TO_OPTIMIZE}_RiskEngineModel", **tuneable_dict)
 
 
 def objective(trial):
@@ -295,26 +291,19 @@ def objective(trial):
     a_factor = trial.suggest_categorical("a_factor", np.linspace(0.5, 5, 50).tolist())
     b_factor = trial.suggest_categorical("b_factor", np.linspace(0.3, 3, 50).tolist())
     lookback = trial.suggest_categorical("lookback", np.arange(3, int(pos["pool_size"]/2), 1).tolist()) 
-    lambda_fee = trial.suggest_categorical("lambda_fee", np.linspace(0.001, 0.1, 100).tolist()) 
-    gamma_fee = trial.suggest_categorical("gamma_fee", np.linspace(0.0003, 0.03, 100).tolist()) 
+    #lambda_fee = trial.suggest_categorical("lambda_fee", np.linspace(0.001, 0.1, 100).tolist()) 
+    #gamma_fee = trial.suggest_categorical("gamma_fee", np.linspace(0.0003, 0.03, 100).tolist()) 
     
     # Default protocol fee constraints for v1
     # Here we summarise default fee struccture parameters for v1
-    # lambda_fee = 0 # i.e. no protocol collected fees -- update this
-    # gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
+    lambda_fee = 0 # i.e. no protocol collected fees -- update this
+    gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
 
-    if DF_TO_OPTIMIZE=="aave":
-        obj = main(in_name="AaveVariable", out_name="df_AaveVariable_APY_model_and_bounds_optimised",
+    obj = main(out_name=f"df_{DF_TO_OPTIMIZE}_RiskEngineModel",
                         tau_u=tau_u, tau_d=tau_d, gamma_unwind=gamma_unwind, dev_lm=dev_lm,
                         dev_im=dev_im, r_init_im=r_init_im, r_init_lm=r_init_lm, lambda_fee=lambda_fee,
                         gamma_fee=gamma_fee, a_factor=a_factor, b_factor=b_factor, lookback=lookback
-                        )
-    else:
-        obj = main(in_name="CompoundV2", out_name="df_CompoundV2_APY_model_and_bounds_optimised",
-                        tau_u=tau_u, tau_d=tau_d, gamma_unwind=gamma_unwind, dev_lm=dev_lm,
-                        dev_im=dev_im, r_init_im=r_init_im, r_init_lm=r_init_lm, lambda_fee=lambda_fee,
-                        gamma_fee=gamma_fee, b_factor=b_factor, lookback=lookback
-                        )
+    )
 
     return obj
 
