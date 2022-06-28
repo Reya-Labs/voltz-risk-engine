@@ -147,7 +147,10 @@ def getDailyApy(datasets, lookback, check_increasing=True):
     
     return df_apy
 
-    
+
+"""
+    Example implementation:
+
 df_Aave_USDC = pd.read_csv("rni_historical_data/aave_usdc.csv")
 df_Aave_USDC = getPreparedRNIData(df_Aave_USDC)
 df_Aave_USDC = getFrequentData(df_Aave_USDC, frequency=30)
@@ -155,3 +158,5 @@ df_Aave_USDC = getFrequentData(df_Aave_USDC, frequency=30)
 apys = getDailyApy([['USDC', df_Aave_USDC]], lookback=5)
 
 apys.to_csv("apy_from_rni/AaveVariable_apy.csv", index=False)
+
+"""   

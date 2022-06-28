@@ -10,6 +10,7 @@ import numpy as np
 from position_dict import position
 from constants import ALPHA, BETA, MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS, SIGMA_SQUARED, XI_LOWER, XI_UPPER
 from utils import SECONDS_IN_YEAR, fixedRateToTick, notional_to_liquidity
+from RNItoAPY import * 
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
@@ -39,8 +40,14 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
         os.makedirs(sim_dir)
    
     # Reload data-set e.g. every time Optuna enters a new trial
-    df = pd.read_csv(f"./historical_data/composite_df_{in_name}_apy.csv")
-    df.set_index("Date", inplace=True)
+    token = pos["tokens"][0]
+    df_raw = pd.read_csv(f"./rni_historical_data/{DF_TO_OPTIMIZE}_{token}.csv")
+    # Get APYs from the raw liquidity indices
+    df = getPreparedRNIData(df_raw)
+    df = getFrequentData(df, frequency=lookback)
+    df = getDailyApy([[token, df]], lookback=5)
+
+    df.set_index("date", inplace=True)
     
     # We will use the moving avaerage APY, with given lookback, to compute the
     # calibration and volatility parameters in the CIR model
@@ -90,9 +97,6 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
         minMarginToIncentiviseLiquidators=MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS,
     )
  
-    # tmc.tokens = pos["tokens"] # Specific tokens in the pool
-    # tmc.date_original = df.index # Need to keep record of the original time here so it's not overwritten in the MarginCalculator
-
     # # # # # # # # # # # # # # # # # # # # # # # # # #
     # # # 3. Instantiate the PortfolioCalculator  # # #
     # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -105,7 +109,7 @@ def main(in_name, out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5
             liquidity=1000,
             balances=None,
             tPool=(pos["pool_size"]/365)*SECONDS_IN_YEAR,
-            lpPosInit=(pos['lp_fix'], pos['lp_var']),
+            lpPosInit=(pos["lp_fix"], pos["lp_var"]),
             ftPosInit=(1000,-1000), # FT positions
             vtPosInit=(-1000,1000), # VT positions
             notional=1000, # Absolute value of the variable token balance of a trader (both ft and vt are assumed to have the same)

@@ -30,7 +30,7 @@ class Calibrator:
         long-term mean-reverted value to use in APY calculations and simulations
     """
     def compute_b_values(self):
-        return {token: self.df_protocol[token].mean() for token in self.df_protocol.columns if "Date" not in token}
+        return {token: self.df_protocol[token].mean() for token in self.df_protocol.columns if "date" not in token}
 
     """
         Need to provide the full pool (Aave or Compound) and the 
@@ -68,10 +68,10 @@ class Calibrator:
     def compute_continuous_drift_and_volatility(self, residual_min=None):
         if residual_min is None:
             residual_min = self.residual_disc_drifts()
-        a_values_dict = {token: -np.log(residual_min[token]["disc_drift_optimum"]) for token in self.df_protocol.columns if "Date" not in token} # Continuous drift
+        a_values_dict = {token: -np.log(residual_min[token]["disc_drift_optimum"]) for token in self.df_protocol.columns if "date" not in token} # Continuous drift
         sigma_discrete_sq_dict = {token: residual_min[token]["minimum_residual"]/(len(self.df_protocol[token])-1) \
-            for token in self.df_protocol.columns if "Date" not in token}
+            for token in self.df_protocol.columns if "date" not in token}
         sigma_dict = {token: np.sqrt((2*a_values_dict[token]*sigma_discrete_sq_dict[token])/(1-np.exp(-2*a_values_dict[token]))) \
-            for token in self.df_protocol.columns if "Date" not in token}
+            for token in self.df_protocol.columns if "date" not in token}
         
         return a_values_dict, sigma_dict
