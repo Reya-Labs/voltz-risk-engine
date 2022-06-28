@@ -10,7 +10,7 @@ of the Voltz interest rate swap (IRS) protocol and associated Smart Contract log
 6) A repository of scraped historic APY data from Aave, Compound, Euler, and other popular DeFi platforms. 
 7) Value-at-risk implmentations through the ```RiskMetrics``` class. 
 
-For further details on the methology behind the Risk Engine and its associated optimisation, please see the dedictaed
+For further details on the methology behind the Risk Engine and its associated optimisation, please see the dedicated
 Risk Engine explainer article at https://www.voltz.xyz/resource-centre/safe-leverage-on-voltz.
 
 ## Extracting and Scraping Data
