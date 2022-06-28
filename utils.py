@@ -1,4 +1,5 @@
 import math
+from bleach import clean
 
 import numpy as np
 
@@ -88,9 +89,11 @@ def date_to_unix_time(df_input, date_original, separator=" ", timezone_separator
     date_time = []
     for date in date_original:
         cleanDate = date.split(timezone_separator)[0] if timezone_separator is not None else date
+        if "Z" in cleanDate:
+            cleanDate = cleanDate.split(".")[0]
         y, m, d = [int(cleanDate.split(separator)[0].split("-")[i]) for i in range(3)]
         h, mt, s = [int(cleanDate.split(separator)[1].split(":")[i])
-                    for i in range(3)]
+                        for i in range(3)]
         date_time.append(datetime.datetime(y, m, d, h, mt, s))
 
     df["date"] = np.array([time.mktime(dt.timetuple())

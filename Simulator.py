@@ -58,7 +58,7 @@ class Simulator(Calibrator):
     """
     def model_apy(self, dt=1, F=1.):
         df_deep_copy = self.df_protocol.copy()
-        tokens = [c for c in self.df_protocol.columns if (("model" not in c) and ("Date" not in c))]
+        tokens = [c for c in self.df_protocol.columns if (("model" not in c) and ("date" not in c))]
         # Set random seed for all simulations
         np.random.seed(42)
         for token in tokens:
@@ -90,7 +90,7 @@ class Simulator(Calibrator):
         if "model" not in " ".join(df_apy.columns):
             raise Exception("No APY model found. Plase run model_apy() first")
             
-        tokens = [c for c in df_apy.columns if (("model" not in c) and ("Date" not in c))]
+        tokens = [c for c in df_apy.columns if (("model" not in c) and ("date" not in c))]
         # Calculate the appropriate time deltas
         time_deltas = np.array([(len(df_apy)-i)*SECONDS_IN_DAY/self.tMax for i in range(len(df_apy))])
         for token in tokens:
