@@ -14,11 +14,11 @@ from RNItoAPY import *
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
-RUN_OPTUNA = True
-DF_TO_OPTIMIZE = "rocket"
+RUN_OPTUNA = False
+DF_TO_OPTIMIZE = "lido"
 
 # Positions
-POSITION = "Generalised_position_many_ticks_rETH_with_std" # Example set of positions to simulate
+POSITION = "Optimised_test_stETH" # Example set of positions to simulate
 pos = position[POSITION]
 top_dir = f"./simulations/{POSITION}/"
 
@@ -48,12 +48,17 @@ def main(out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5, dev_im=
     df = getDailyApy([[token, df]], lookback=lookback)
 
     df.set_index("date", inplace=True)
-    
     # We will use the moving avaerage APY, with given lookback, to compute the
     # calibration and volatility parameters in the CIR model
     for token in df.columns:
         df[token] = df[token].rolling(lookback).mean() # MA 
-    df = df.iloc[-pos["pool_size"]:] # Only keep the latest data for a given N-day pool
+
+    # We need to make sure that the DataFrame does not contain NaNs because of a lookback window that
+    # is too large
+    if len(df)-lookback <= pos["pool_size"]:
+        lookback = len(df)-pos["pool_size"] # Maximum possible lookback
+    if pos["pool_size"] != -1:
+        df = df.iloc[-pos["pool_size"]:] # Only keep the latest data for a given N-day pool
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # # # 1. Instantiate Simulator: inherits from Calibrator, gets CIR model params, generates the APY bounds # # # 
@@ -170,7 +175,7 @@ def main(out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5, dev_im=
                         
                         # Now compute the protocol collected fees, the associated Sharpe ratios, and the fraction of
                         # undercollateralised events
-                        sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars, l_levs, i_levs = pc.sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
+                        sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars, l_levs, i_levs, gaps = pc.sharpe_ratio_undercol_events(tick_l=lower, tick_u=upper)
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["SRs"] = sharpes
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Frac Us"] = undercols
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Liq. fact."] = l_factors
@@ -180,6 +185,7 @@ def main(out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5, dev_im=
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["IVaRs"] = i_vars
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["L-Levs"] = l_levs
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["I-Levs"] = i_levs
+                        summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"]["Gaps"] = gaps
                         fee_collector.append(df_apy_mc["protocol_fee"].mean()) 
                         df_apy_mc.to_csv(sim_dir+out_name+f"_F_value_{f}_{market}_{tick_name}_{fee}_full_risk_engine_output.csv")
 
@@ -211,6 +217,9 @@ def main(out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5, dev_im=
                         mp.dict_to_df(summary_dict, "Leverage FT", "Leverage").stack().values, \
                         mp.dict_to_df(summary_dict, "Leverage LP", "Leverage").stack().values]).flatten()
     
+    # Pick up the FT leverage to use for regularisation
+    meanLevFT = mp.dict_to_df(summary_dict, "Leverage FT", "Leverage").stack().values.flatten().mean()
+    
     # Normalise and get the means
     meanSR = normalise(flatSR).mean()   
     meanU = 0 if np.all(flatU==0) else normalise(flatU).mean() 
@@ -229,6 +238,9 @@ def main(out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5, dev_im=
     meanLVaR_VT = np.array(mp.dict_to_df(summary_dict, "LVaR VT", "LVaRs").stack().values).flatten().mean()
     meanIVaR_VT = np.array(mp.dict_to_df(summary_dict, "IVaR VT", "IVaRs").stack().values).flatten().mean()
 
+    # FT margin gap for regularisation
+    meanGap_FT = np.array(mp.dict_to_df(summary_dict, "Gap FT", "Gaps").stack().values).flatten().mean()
+
     if debug:
         print("flatSR: ", flatSR)
         print("flatU: ", flatU)
@@ -239,19 +251,23 @@ def main(out_name, tau_u = 1.5, tau_d = 0.7, gamma_unwind=1, dev_lm=0.5, dev_im=
         print("meanU: ", meanU)
         print("meanLiq: ", meanLiq)
         print("meanLev: ", meanLev)
-        print("meanLVaR_LP", meanLVaR_LP)
-        print("meanLVaR_FT", meanLVaR_FT)
-        print("meanLVaR_VT", meanLVaR_VT)
-        print("meanIVaR_LP", meanIVaR_LP)
-        print("meanIVaR_FT", meanIVaR_FT)
-        print("meanIVaR_VT", meanIVaR_VT)
+        print("meanLVaR_LP: ", meanLVaR_LP)
+        print("meanLVaR_FT: ", meanLVaR_FT)
+        print("meanLVaR_VT: ", meanLVaR_VT)
+        print("meanIVaR_LP: ", meanIVaR_LP)
+        print("meanIVaR_FT: ", meanIVaR_FT)
+        print("meanIVaR_VT: ", meanIVaR_VT)
+        print("meanGap_FT: ", meanGap_FT)
     
     if RUN_OPTUNA:
         # Maximise this -- use the VaRs for regularisation
         l_var_lim, i_var_lim = 0.0, 0.0
+            
         obj = meanLev - stdLev - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
             - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
-            - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) 
+                - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) \
+                    -10*int(meanLevFT < 20)
+
         return obj
 
 def run_with_a_single_set_of_params(parser):
@@ -290,14 +306,14 @@ def objective(trial):
     r_init_im = trial.suggest_categorical("r_init_im", np.linspace(0.001, 0.2, 100).tolist())
     a_factor = trial.suggest_categorical("a_factor", np.linspace(0.5, 5, 50).tolist())
     b_factor = trial.suggest_categorical("b_factor", np.linspace(0.3, 3, 50).tolist())
-    lookback = trial.suggest_categorical("lookback", np.arange(3, int(pos["pool_size"]/2), 1).tolist()) 
-    #lambda_fee = trial.suggest_categorical("lambda_fee", np.linspace(0.001, 0.1, 100).tolist()) 
-    #gamma_fee = trial.suggest_categorical("gamma_fee", np.linspace(0.0003, 0.03, 100).tolist()) 
+    lookback = trial.suggest_categorical("lookback", np.arange(3, 40, 1).tolist()) 
+    lambda_fee = trial.suggest_categorical("lambda_fee", np.linspace(0.001, 0.1, 100).tolist()) 
+    gamma_fee = trial.suggest_categorical("gamma_fee", np.linspace(0.0003, 0.03, 100).tolist()) 
     
     # Default protocol fee constraints for v1
     # Here we summarise default fee struccture parameters for v1
-    lambda_fee = 0 # i.e. no protocol collected fees -- update this
-    gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
+    #lambda_fee = 0 # i.e. no protocol collected fees -- update this
+    #gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
 
     obj = main(out_name=f"df_{DF_TO_OPTIMIZE}_RiskEngineModel",
                         tau_u=tau_u, tau_d=tau_d, gamma_unwind=gamma_unwind, dev_lm=dev_lm,

@@ -411,6 +411,20 @@ class PortfolioCalculator:
 
         return l_vars, i_vars, l_levs, i_levs
 
+    # We want to ensure that the leverage for all actors is high, whilst keeping the gap between the initial and
+    # liquiation margins sensible, but not too large so as the make the leverage overly conservative. Compute a margin gap, 
+    # where gap = Margin deposited - LM at start for an FT
+    def get_margin_gap(self):
+        gaps, gap = {}, 0
+        for token in self.tokens:
+            if self.positions != {}:
+                gap =  np.abs(self.df_protocol[f"mr_im_ft_{token}_{self.positions[token]['ftPosInit']}"]-\
+                    self.df_protocol[f"mr_lm_ft_{token}_{self.positions[token]['ftPosInit']}"])
+            else:
+                gap =  np.abs(self.df_protocol[f"mr_im_ft_{token}_{self.ftPosInit}"]-self.df_protocol[f"mr_lm_ft_{token}_{self.ftPosInit}"])
+        gaps[f"Gap FT: {token}"] = gap.mean()
+        return gaps
+
     def generate_lp_pnl_and_net_margin(self, tick_l=5000, tick_u=6000, lp_leverage_factor=1):
 
         # liquidity, tickLower, tickUpper
@@ -445,7 +459,8 @@ class PortfolioCalculator:
         levs = self.computeLeverage(tickLower=tick_l, tickUpper=tick_u) # Leverage calculation
         the_apys = self.returnAPYs() # APYs
         l_vars, i_vars, l_levs, i_levs = self.computeVaRs(tickLower=tick_l, tickUpper=tick_u) #LVaRs and IVaRs
+        gaps = self.get_margin_gap()
 
         print("Completed Sharpe ratio and undercolateralisation calculations")
 
-        return sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars, l_levs, i_levs
+        return sharpes, undercols, l_factors, levs, the_apys, l_vars, i_vars, l_levs, i_levs, gaps
