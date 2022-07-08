@@ -56,7 +56,7 @@ def getFrequentData(df_rni, frequency):
             t_b = df_rni["date"][closest+1]
             v_b = df_rni["liquidityIndex"][closest+1]
 
-            v_timestamp = ((timestamp - t_a) * v_a + (t_b - timestamp) * v_b) / (t_b - t_a)
+            v_timestamp = ((t_b - timestamp) * v_a + (timestamp - t_a) * v_b) / (t_b - t_a)
 
             timestamps.append(timestamp)
             rnis.append(v_timestamp)
