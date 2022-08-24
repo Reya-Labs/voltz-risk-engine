@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 
-DF_TO_OPTIMIZE = "aave_borrow"
-POSITION = "RiskEngineOptimisation_borrow_aWETH_4_months_FTLev" 
+DF_TO_OPTIMIZE = "compound_borrow"
+POSITION = "RiskEngineOptimisation_borrow_cUSDT_V2" 
 pos = position[POSITION]
 
 # Pick up the optimised parameters 
@@ -28,8 +28,7 @@ def main(parser):
     parser.add_argument("-update_param", "--update_param", type=str, help="The tuneable parameter to scan over", default="tau_u")
     update_param = parser.parse_args().update_param
 
-    name = "aWETH_borrrow_4_months_FTLev_corrected"
-    top_dir = f"./simulations/sensitivity_studies/{name}/{update_param}" # Need to pass an update top_dir to the simulator
+    top_dir = f"./simulations/sensitivity_studies/{POSITION}/{update_param}" # Need to pass an update top_dir to the simulator
     if not os.path.exists(top_dir):
         os.makedirs(top_dir)
     
@@ -85,13 +84,6 @@ def main(parser):
     new_factor = 1.0
     df_sensitivity = {}
     print(params_all)
-    params_all["dev_lm"] = params_all["dev_lm"]*0.3
-    params_all["dev_im"] = params_all["dev_im"]*0.1
-    params_all["sigma_factor"] = params_all["sigma_factor"]
-    #params_all["tau_u"] = params_all["tau_u"]*1.2
-    params_all["tau_d"] = params_all["tau_d"]*0.8
-    params_all["xi_lower"] = 19
-    #params_all["xi_upper"] = 29
     print(params_all)
     df_sensitivity[new_factor] = run_simulator.main(out_name=f"df_{DF_TO_OPTIMIZE}_RiskEngineModel_Factor{factor}", **params_all, return_df=True)
     if update_param!="lookback":
@@ -108,34 +100,32 @@ def main(parser):
         print(df_summary[["FT leverage", "VT leverage"]])
         df_summary[[c for c in df_summary.columns if (("FT" in c) and ("margin" in c))]].plot(rot=45, title="FT margins")
         plt.ylabel("Margin from 1000 notional [arb. units]")
-        plt.xlabel("Timestamp (210-day pool)")
-        #plt.ylim(0,1000)
+        plt.xlabel("Timestamp")
         plt.tight_layout()
-        plt.savefig(f"./simulations/sensitivity_studies/{name}/FT_margins.png")
+        plt.savefig(f"./simulations/sensitivity_studies/{POSITION}/FT_margins.png")
         plt.close()
     
         df_summary[[c for c in df_summary.columns if (("VT" in c) and ("margin" in c))]].plot(rot=45, title="VT margins")
         plt.ylabel("Margin from 1000 notional [arb. units]")
-        plt.xlabel("Timestamp (210-day pool)")
-        #plt.ylim(0,1000)
+        plt.xlabel("Timestamp")
         plt.tight_layout()
-        plt.savefig(f"./simulations/sensitivity_studies/{name}/VT_margins.png")
+        plt.savefig(f"./simulations/sensitivity_studies/{POSITION}/VT_margins.png")
         plt.close()
        
         df_summary[[c for c in df_summary.columns if (("LP" in c) and ("margin" in c))]].plot(rot=45, title="LP margins")
         plt.ylabel("Margin from 1000 notional [arb. units]")
-        plt.xlabel("Timestamp (210-day pool)")
-        #plt.ylim(0,1000)
+        plt.xlabel("Timestamp")
         plt.tight_layout()
-        plt.savefig(f"./simulations/sensitivity_studies/{name}/LP_margins.png")
+        plt.savefig(f"./simulations/sensitivity_studies/{POSITION}/LP_margins.png")
         plt.close()
         
         df_summary.iloc[:-1][["FT leverage", "VT leverage"]].plot(rot=45, title="Leverages")
         plt.ylabel("Leverage [x]")
-        plt.xlabel("Timestamp (210-day pool)")
-        #plt.ylim(0,1000)
+        plt.xlabel("Timestamp")
+        if df_summary["FT leverage"].max()>1000 or df_summary["VT leverage"]>1000:
+            plt.ylim(0,1000)
         plt.tight_layout()
-        plt.savefig(f"./simulations/sensitivity_studies/{name}/FT_VT_Leverages.png")
+        plt.savefig(f"./simulations/sensitivity_studies/{POSITION}/FT_VT_Leverages.png")
         plt.close()
 
 if __name__=="__main__":
