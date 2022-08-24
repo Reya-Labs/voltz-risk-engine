@@ -1,4 +1,5 @@
 import math
+from tracemalloc import start
 
 import pandas as pd
 from utils import SECONDS_IN_YEAR, date_to_unix_time, generate_margin_requirements_lp, generate_margin_requirements_trader, generate_net_margin_trader, generate_pnl_trader, getAmount0Delta, getAmount1Delta, getSqrtRatioAtTick, notional_to_liquidity, preprocess_df, sqrtPriceToFixedRate
@@ -34,11 +35,11 @@ class MarginCalculator:
         self.minMarginToIncentiviseLiquidators = minMarginToIncentiviseLiquidators
 
     # tested
-    def worstCaseVariableFactorAtMaturity(self, timeInSecondsFromStartToMaturity,
-                                          isFT, isLM, lowerApyBound, upperApyBound):
+    def worstCaseVariableFactorAtMaturity(self, timeInSecondsFromStartToMaturity, isFT, isLM, 
+                                          lowerApyBound, upperApyBound):
 
         timeInYearsFromStartToMaturity = timeInSecondsFromStartToMaturity / SECONDS_IN_YEAR
-
+        
         apyBound = lowerApyBound
         if isFT:
             apyBound = upperApyBound
@@ -167,7 +168,7 @@ class MarginCalculator:
 
     # inherintely tested
     def getMinimumMarginRequirement(self, fixedTokenBalance, variableTokenBalance, isLM, fixedRate, currentTimestamp,
-                                    accruedVariableFactor, lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp):
+                                    variableFactor, lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp):
 
         if variableTokenBalance == 0:
             return 0
@@ -218,7 +219,7 @@ class MarginCalculator:
         fixedTokenDelta = self.getFixedTokenBalance(
             amountFixed,
             -variableTokenBalance,
-            accruedVariableFactor,
+            variableFactor,
             termStartTimestamp,
             termEndTimestamp,
             currentTimestamp

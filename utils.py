@@ -1,4 +1,5 @@
 import math
+from tracemalloc import start
 from bleach import clean
 
 import numpy as np
@@ -275,12 +276,10 @@ def compute_margin_requirement_df_row_lp(row, marginCalculator, termStartTimesta
 
         marginRequirement = marginCalculator.getPositionMarginRequirement(
             variableFactor=0,
-            #currentTick=fixedRateToTick(row['fr'] * 100),
             currentTick=fixedRateToTick(row['fr lp'] * 100),
             positionLiquidity=positionLiquidity,
             tickLower=tickLower,
             tickUpper=tickUpper,
-            #sqrtPrice=fixedRateToSqrtPrice(row['fr'] * 100),
             sqrtPrice=fixedRateToSqrtPrice(row['fr lp'] * 100),
             termStartTimestamp=termStartTimestamp,
             termEndTimestamp=termEndTimestamp,
@@ -289,7 +288,7 @@ def compute_margin_requirement_df_row_lp(row, marginCalculator, termStartTimesta
             positionFixedTokenBalance=positionFixedTokenBalance,
             isLM=isLM,
             lowerApyBound=row['lower'],
-            upperApyBound=row['upper']
+            upperApyBound=row['upper'],
         )
 
         return marginRequirement
