@@ -1,8 +1,9 @@
+from re import A
 import unittest
 
 import pandas as pd
 from MarginCalculator import MarginCalculator
-from constants import ALPHA, APY_LOWER_MULTIPLIER, APY_UPPER_MULTIPLIER, BETA, DEV_MUL_LEFT_UNWIND_IM, DEV_MUL_LEFT_UNWIND_LM, DEV_MUL_RIGHT_UNWIND_IM, DEV_MUL_RIGHT_UNWIND_LM, FIXED_RATE_DEVIATION_MIN_LEFT_UNWIND_IM, FIXED_RATE_DEVIATION_MIN_LEFT_UNWIND_LM, FIXED_RATE_DEVIATION_MIN_RIGHT_UNWIND_IM, FIXED_RATE_DEVIATION_MIN_RIGHT_UNWIND_LM, GAMMA, MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS, SIGMA_SQUARED, T_MAX, TERM_START_TIMESTAMP, XI_LOWER, XI_UPPER
+from constants import ALPHA, APY_LOWER_MULTIPLIER, APY_UPPER_MULTIPLIER, BETA, ETA_IM, ETA_LM, MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS, SIGMA_SQUARED, T_MAX, TERM_START_TIMESTAMP, XI_LOWER, XI_UPPER
 from utils import SECONDS_IN_DAY, SECONDS_IN_WEEK, SECONDS_IN_YEAR, fixedRateToSqrtPrice, fixedRateToTick, notional_to_liquidity
 
 class TestMarginCalculator(unittest.TestCase):
@@ -17,15 +18,8 @@ class TestMarginCalculator(unittest.TestCase):
             xiUpper=XI_UPPER,
             xiLower=XI_LOWER,
             tMax=T_MAX,
-            devMulLeftUnwindLM=DEV_MUL_LEFT_UNWIND_LM,
-            devMulRightUnwindLM=DEV_MUL_RIGHT_UNWIND_LM,
-            devMulLeftUnwindIM=DEV_MUL_LEFT_UNWIND_IM,
-            devMulRightUnwindIM=DEV_MUL_RIGHT_UNWIND_IM,
-            fixedRateDeviationMinLeftUnwindLM=FIXED_RATE_DEVIATION_MIN_LEFT_UNWIND_LM,
-            fixedRateDeviationMinRightUnwindLM=FIXED_RATE_DEVIATION_MIN_RIGHT_UNWIND_LM,
-            fixedRateDeviationMinLeftUnwindIM=FIXED_RATE_DEVIATION_MIN_LEFT_UNWIND_IM,
-            fixedRateDeviationMinRightUnwindIM=FIXED_RATE_DEVIATION_MIN_RIGHT_UNWIND_IM,
-            gamma=GAMMA,
+            etaIM=ETA_IM,
+            etaLM=ETA_LM,
             minMarginToIncentiviseLiquidators=MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS,
         )
 
@@ -106,21 +100,6 @@ class TestMarginCalculator(unittest.TestCase):
         self.assertAlmostEqual(realized, 35428571428571468299319 / 1e18, delta=1e-6)
 
 
-    def test_get_fixed_token_delta_unbalanced_simulated_unwind(self):
-        variableTokenDeltaAbsolute = 1000
-        fixedRateStart = 1
-        startingFixedRateMultiplier = 1.5
-        fixedRateDeviationMin = 0.2
-        termEndTimestamp = TERM_START_TIMESTAMP + 3 * SECONDS_IN_WEEK
-        currentTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
-        tMax = T_MAX
-        gamma = 1
-        isFTUnwind = True
-        
-        realized = self.marginCalculator.getFixedTokenDeltaUnbalancedSimulatedUnwind(variableTokenDeltaAbsolute, fixedRateStart, startingFixedRateMultiplier, fixedRateDeviationMin, termEndTimestamp, currentTimestamp, tMax, gamma, isFTUnwind)
-
-        self.assertAlmostEqual(realized, 943.555176826535, delta=1e-6)
-
     
     def test_worst_case_variable_factor_at_maturity(self):
         timeInSecondsFromStartToMaturity = 1209600
@@ -191,6 +170,32 @@ class TestMarginCalculator(unittest.TestCase):
         self.assertAlmostEqual(realized[0], 12520.59173921428502871, delta=1e-3)
         self.assertAlmostEqual(realized[1], -11.999472029327827822, delta=1e-3)
 
+  
+    def test_get_minimum_margin_requirement(self):
+        variableTokenBalance = -5000
+        currentTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        isLM = True
+
+        realized = self.marginCalculator.getMinimumMarginRequirement(variableTokenBalance, currentTimestamp, termEndTimestamp, isLM)
+        self.assertAlmostEqual(realized, 0.09589041096, delta=1e-3)
+        
+        variableTokenBalance = 15000
+        currentTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        isLM = True
+
+        realized = self.marginCalculator.getMinimumMarginRequirement(variableTokenBalance, currentTimestamp, termEndTimestamp, isLM)
+        self.assertAlmostEqual(realized, 0.2876712329, delta=1e-3)
+        
+        variableTokenBalance = -10000
+        currentTimestamp = TERM_START_TIMESTAMP
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        isLM = False
+
+        realized = self.marginCalculator.getMinimumMarginRequirement(variableTokenBalance, currentTimestamp, termEndTimestamp, isLM)
+        self.assertAlmostEqual(realized, 0.3835616438, delta=1e-3)
+
     def test_get_margin_requirement(self):
         fixedTokenBalance = 1000
         variableTokenBalance = -3000
@@ -207,7 +212,7 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 11.424182354226593680, delta=1e-3)
+        self.assertAlmostEqual(realized, 11.424182354226593680, delta=1e-3) # Update value
 
 
         fixedTokenBalance = 10
@@ -225,7 +230,7 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 116159.629843635797628803, delta=10)
+        self.assertAlmostEqual(realized, 116159.629843635797628803, delta=10) # Update value
 
 
         fixedTokenBalance = 1000
@@ -243,7 +248,7 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 11.752037636084398722, delta=1)
+        self.assertAlmostEqual(realized, 11.752037636084398722, delta=1) # Update value
 
  
         fixedTokenBalance = -1000
@@ -261,7 +266,7 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 0.171249348113833000, delta=1e-3)
+        self.assertAlmostEqual(realized, 0.171249348113833000, delta=1e-3) # Update value
 
 
         fixedTokenBalance = 1000
@@ -279,7 +284,7 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 0.927603785405792000, delta=1e-3)
+        self.assertAlmostEqual(realized, 0.927603785405792000, delta=1e-3) # Update value
 
 
     def test_get_position_margin_requirement(self):
