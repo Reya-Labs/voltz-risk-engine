@@ -38,11 +38,8 @@ class MarginCalculator:
             else:
                 apyBound = apyBound * self.apyLowerMultiplier
 
-        print("apy bound:", apyBound)
-        
-        variableFactor = rateFromStart * (apyBound * timeInYearsFromNowToMaturity + 1) - 1
-        print("variable factor:", variableFactor)
 
+        variableFactor = rateFromStart * (apyBound * timeInYearsFromNowToMaturity + 1) - 1
         return variableFactor
 
     # inherintely tested
@@ -56,7 +53,7 @@ class MarginCalculator:
             self.fixedFactor(True, termStartTimestamp,
                              termEndTimestamp, currentTimestamp)
 
-        wc_vf = self.worstCaseVariableFactorAtMaturity(
+        exp2 = variableTokenBalance * self.worstCaseVariableFactorAtMaturity(
             timeInSecondsFromNowToMaturity,
             variableTokenBalance < 0,
             isLM,
@@ -64,8 +61,6 @@ class MarginCalculator:
             upperApyBound,
             accruedVariableFactor
         )
-
-        exp2 = variableTokenBalance * wc_vf
 
         maxCashflowDeltaToCoverPostMaturity = exp1 + exp2
 
@@ -311,12 +306,12 @@ class MarginCalculator:
                 currentTimestamp,
                 variableFactor
             )
-
             if scenario1MarginRequirement > scenario2MarginRequirement:
                 return scenario1MarginRequirement
             else:
                 return scenario2MarginRequirement
         else:
+
             return self._getMarginRequirement(
                 fixedTokenBalance=positionFixedTokenBalance,
                 variableTokenBalance=positionVariableTokenBalance,

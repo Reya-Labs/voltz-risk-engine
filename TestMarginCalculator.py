@@ -300,9 +300,7 @@ class TestMarginCalculator(unittest.TestCase):
         termStartTimestamp = TERM_START_TIMESTAMP - SECONDS_IN_WEEK
         termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
         currentTimestamp = TERM_START_TIMESTAMP
-        accruedVariableFactor = 0.000193718001937
-        accruedApy = ((accruedVariableFactor + 1) ** (365 / 7) - 1)
-        print("ACCRUED APY:", accruedApy)
+        accruedVariableFactor = 0.000193718001937 # accrued apy of 1%
 
         realized = self.marginCalculator.getMarginRequirement(fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
