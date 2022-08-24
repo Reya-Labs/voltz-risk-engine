@@ -38,12 +38,10 @@ class MarginCalculator:
             else:
                 apyBound = apyBound * self.apyLowerMultiplier
 
-
+        print("apy bound:", apyBound)
+        
         variableFactor = rateFromStart * (apyBound * timeInYearsFromNowToMaturity + 1) - 1
-
-        print("IN WC_VF:", timeInSecondsFromNowToMaturity)
-        print("IN_WC_VF:", variableFactor)
-        print("IN_WC_VF:", timeInYearsFromNowToMaturity * apyBound)
+        print("variable factor:", variableFactor)
 
         return variableFactor
 
@@ -58,7 +56,7 @@ class MarginCalculator:
             self.fixedFactor(True, termStartTimestamp,
                              termEndTimestamp, currentTimestamp)
 
-        exp2 = variableTokenBalance * self.worstCaseVariableFactorAtMaturity(
+        wc_vf = self.worstCaseVariableFactorAtMaturity(
             timeInSecondsFromNowToMaturity,
             variableTokenBalance < 0,
             isLM,
@@ -66,6 +64,8 @@ class MarginCalculator:
             upperApyBound,
             accruedVariableFactor
         )
+
+        exp2 = variableTokenBalance * wc_vf
 
         maxCashflowDeltaToCoverPostMaturity = exp1 + exp2
 
@@ -78,8 +78,6 @@ class MarginCalculator:
                                                                     currentTimestamp=currentTimestamp,
                                                                     termEndTimestamp=termEndTimestamp,
                                                                     isLM=isLM)
-
-        print("minimumMarginRequirement:", minimumMarginRequirement)
 
         if margin < minimumMarginRequirement:
             margin = minimumMarginRequirement
@@ -313,21 +311,12 @@ class MarginCalculator:
                 currentTimestamp,
                 variableFactor
             )
+
             if scenario1MarginRequirement > scenario2MarginRequirement:
-                print("scenario 1 kicks in")
-                print("ft:", scenario1LPFixedTokenBalance)
-                print("vt:", scenario1LPVariableTokenBalance)
-                print("scenario1MarginRequirement:", scenario1MarginRequirement)
                 return scenario1MarginRequirement
             else:
-                print("scenario 2 kicks in")
-                print("ft:", scenario2LPFixedTokenBalance)
-                print("vt:", scenario2LPVariableTokenBalance)
-                print("scenario2MarginRequirement:", scenario2MarginRequirement)
-                print("scenario 2 kicks in")
                 return scenario2MarginRequirement
         else:
-
             return self._getMarginRequirement(
                 fixedTokenBalance=positionFixedTokenBalance,
                 variableTokenBalance=positionVariableTokenBalance,
