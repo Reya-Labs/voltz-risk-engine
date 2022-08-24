@@ -79,6 +79,8 @@ class MarginCalculator:
                                                                     termEndTimestamp=termEndTimestamp,
                                                                     isLM=isLM)
 
+        print("minimumMarginRequirement:", minimumMarginRequirement)
+
         if margin < minimumMarginRequirement:
             margin = minimumMarginRequirement
 
@@ -312,8 +314,17 @@ class MarginCalculator:
                 variableFactor
             )
             if scenario1MarginRequirement > scenario2MarginRequirement:
+                print("scenario 1 kicks in")
+                print("ft:", scenario1LPFixedTokenBalance)
+                print("vt:", scenario1LPVariableTokenBalance)
+                print("scenario1MarginRequirement:", scenario1MarginRequirement)
                 return scenario1MarginRequirement
             else:
+                print("scenario 2 kicks in")
+                print("ft:", scenario2LPFixedTokenBalance)
+                print("vt:", scenario2LPVariableTokenBalance)
+                print("scenario2MarginRequirement:", scenario2MarginRequirement)
+                print("scenario 2 kicks in")
                 return scenario2MarginRequirement
         else:
 
