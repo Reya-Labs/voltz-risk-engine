@@ -275,9 +275,10 @@ class PortfolioCalculator:
             if self.positions != {}: # Should be margin deposited, not mr_im
                 netFT = (self.df_protocol[f"margin_deposited_ft_{token}_{self.positions[token]['ftPosInit']}"].values[0] + \
                     self.df_protocol[f"pnl_ft_{token}_{self.positions[token]['ftPosInit']}"]).values
-        
+
                 netVT = (self.df_protocol[f"margin_deposited_vt_{token}_{self.positions[token]['vtPosInit']}"].values[0] + \
                     self.df_protocol[f"pnl_vt_{token}_{self.positions[token]['vtPosInit']}"]).values
+                
             else:
                 netFT = (self.df_protocol[f"margin_deposited_ft_{token}_{self.ftPosInit}"].values[0] + \
                     self.df_protocol[f"pnl_ft_{token}_{self.ftPosInit}"]).values
@@ -337,17 +338,17 @@ class PortfolioCalculator:
         notional_liquidity = self.liquidity_to_notional(tickUpper, tickLower)
         for token in self.tokens:
             levFT, levVT = None, None
-            levLP = np.abs(notional_liquidity / self.df_protocol[f"margin_deposited_lp_{token}_{self.lpPosInit}_{self.liquidity}"].values[0])
+            levLP = np.abs(notional_liquidity / self.df_protocol[f"mr_lm_lp_{token}_{self.lpPosInit}_{self.liquidity}"].values[0])
             if self.positions != {}:
                 levFT = np.abs(float(self.positions[token]['ftPosInit'].split("_")[1])/ \
-                    self.df_protocol[f"margin_deposited_ft_{token}_{self.positions[token]['ftPosInit']}"].values[0])
+                    self.df_protocol[f"mr_lm_ft_{token}_{self.positions[token]['ftPosInit']}"].values[0])
                 levVT = np.abs(float(self.positions[token]['vtPosInit'].split("_")[1]) / \
-                    self.df_protocol[f"margin_deposited_vt_{token}_{self.positions[token]['vtPosInit']}"].values[0])
+                    self.df_protocol[f"mr_lm_vt_{token}_{self.positions[token]['vtPosInit']}"].values[0])
             else:
                 levFT = np.abs(float(self.ftPosInit.split("_")[1])/ \
-                    self.df_protocol[f"margin_deposited_ft_{token}_{self.ftPosInit}"].values[0])
+                    self.df_protocol[f"mr_lm_ft_{token}_{self.ftPosInit}"].values[0])
                 levVT = np.abs(float(self.vtPosInit.split("_")[1]) / \
-                    self.df_protocol[f"margin_deposited_vt_{token}_{self.vtPosInit}"].values[0])
+                    self.df_protocol[f"mr_lm_vt_{token}_{self.vtPosInit}"].values[0])
                 
             levs[f"Leverage FT: {token}"] = levFT
             levs[f"Leverage VT: {token}"] = levVT
@@ -415,14 +416,21 @@ class PortfolioCalculator:
     # liquiation margins sensible, but not too large so as the make the leverage overly conservative. Compute a margin gap, 
     # where gap = Margin deposited - LM at start for an FT
     def get_margin_gap(self):
-        gaps, gap = {}, 0
+        gaps, gap_ft, gap_vt = {}, 0, 0
         for token in self.tokens:
             if self.positions != {}:
-                gap =  np.abs(self.df_protocol[f"mr_im_ft_{token}_{self.positions[token]['ftPosInit']}"]-\
-                    self.df_protocol[f"mr_lm_ft_{token}_{self.positions[token]['ftPosInit']}"])
+                gap_ft =  self.df_protocol[f"mr_lm_ft_{token}_{self.positions[token]['ftPosInit']}"]
+                gap_vt =  self.df_protocol[f"mr_lm_vt_{token}_{self.positions[token]['vtPosInit']}"]
             else:
-                gap =  np.abs(self.df_protocol[f"mr_im_ft_{token}_{self.ftPosInit}"]-self.df_protocol[f"mr_lm_ft_{token}_{self.ftPosInit}"])
-        gaps[f"Gap FT: {token}"] = gap.mean()
+                gap_ft =  self.df_protocol[f"mr_lm_ft_{token}_{self.ftPosInit}"]
+                gap_vt =  self.df_protocol[f"mr_lm_vt_{token}_{self.vtPosInit}"]
+            gap_lp =  self.df_protocol[f"mr_lm_lp_{token}_{self.lpPosInit}_{self.liquidity}"]
+            
+            # We want the closing gap at t-1 between the margins
+            gaps[f"Gap FT: {token}"] = gap_ft.iloc[-2] 
+            gaps[f"Gap VT: {token}"] = gap_vt.iloc[-2] 
+            gaps[f"Gap LP: {token}"] = gap_lp.iloc[-2] 
+        
         return gaps
 
     def generate_lp_pnl_and_net_margin(self, tick_l=5000, tick_u=6000, lp_leverage_factor=1):

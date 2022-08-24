@@ -92,7 +92,7 @@ def date_to_unix_time(df_input, date_original, separator=" ", timezone_separator
         if "Z" in cleanDate:
             cleanDate = cleanDate.split(".")[0]
         y, m, d = [int(cleanDate.split(separator)[0].split("-")[i]) for i in range(3)]
-        h, mt, s = [int(cleanDate.split(separator)[1].split(":")[i])
+        h, mt, s = [int(cleanDate.split(separator)[1].split(":")[i].split("+")[0])
                         for i in range(3)]
         date_time.append(datetime.datetime(y, m, d, h, mt, s))
 
@@ -139,6 +139,9 @@ def preprocess_df(df_input, token, fr_market="neutral"):
                     (df["date"].values[-1]-df["date"].values[i])/df["date"].values[-1] - FT_ERROR for i in range(len(df))]
         # Check on fixed rates, in case bearish rates go negative
         df["fr"] = [fr if fr > 0 else 0.0001 for fr in df["fr"].values]
+
+    # Add a constant fixed rate for the LP
+    df["fr lp"] = df["fr"].mean()
 
     return df
 
@@ -272,11 +275,13 @@ def compute_margin_requirement_df_row_lp(row, marginCalculator, termStartTimesta
 
         marginRequirement = marginCalculator.getPositionMarginRequirement(
             variableFactor=0,
-            currentTick=fixedRateToTick(row['fr'] * 100),
+            #currentTick=fixedRateToTick(row['fr'] * 100),
+            currentTick=fixedRateToTick(row['fr lp'] * 100),
             positionLiquidity=positionLiquidity,
             tickLower=tickLower,
             tickUpper=tickUpper,
-            sqrtPrice=fixedRateToSqrtPrice(row['fr'] * 100),
+            #sqrtPrice=fixedRateToSqrtPrice(row['fr'] * 100),
+            sqrtPrice=fixedRateToSqrtPrice(row['fr lp'] * 100),
             termStartTimestamp=termStartTimestamp,
             termEndTimestamp=termEndTimestamp,
             currentTimestamp=row['date'],

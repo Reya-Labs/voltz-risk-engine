@@ -56,7 +56,7 @@ class Simulator(Calibrator):
         This makes a deep copy and returns a new DataFrame corresonding to the raw stochastic model i.e.
         no EWMA has been applied at this point
     """
-    def model_apy(self, dt=1, F=1.):
+    def model_apy(self, dt=1, F=1., alpha_factor=1, beta_factor=1):
         df_deep_copy = self.df_protocol.copy()
         tokens = [c for c in self.df_protocol.columns if (("model" not in c) and ("date" not in c))]
         # Set random seed for all simulations
@@ -65,13 +65,17 @@ class Simulator(Calibrator):
             a, b, sigma = self.a_values_dict[token], self.b_values_dict[token], self.sigma_dict[token]*F
             apy_i = df_deep_copy[token].values[0]
             apy_model = [apy_i]
+            # Re-write the model terms
+            alpha = a*b*alpha_factor
+            beta = a*beta_factor
             for i in range(1, len(df_deep_copy)):
-                dapy = a*(b-apy_i)*dt + sigma * np.sqrt(apy_i) * np.random.normal(0,1,1)[0] * np.sqrt(dt) # Need a random seed for this
+                #dapy = a*(b-apy_i)*dt + sigma * np.sqrt(apy_i) * np.random.normal(0,1,1)[0] * np.sqrt(dt) # Need a random seed for this
+                dapy = (alpha-beta*apy_i)*dt + sigma * np.sqrt(apy_i) * np.random.normal(0,1,1)[0] * np.sqrt(dt) # Need a random seed for this
                 apy_i += dapy
                 
                 # Add in protection against negative APYs in the modelling
                 if apy_i <= 0:
-                    apy_i = b/100 # Some tolerance based on the average APY
+                    apy_i = beta/100 # Some tolerance based on the average APY
                 
                 apy_model.append(apy_i)
             df_deep_copy[token + " model"] = apy_model
@@ -83,7 +87,7 @@ class Simulator(Calibrator):
         Compute the confidence interval on APY (defaults to 95 % interval), saving the upper and lower
         bounds as the a time series
     """
-    def compute_apy_confidence_interval(self, xi_lower=1.96, xi_upper=1.96, df_apy=None, F=1.): 
+    def compute_apy_confidence_interval(self, xi_lower=1.96, xi_upper=1.96, df_apy=None, F=1., alpha_factor=1, beta_factor=1): 
 
         if df_apy is None:
             df_apy = self.df_protocol 
@@ -94,8 +98,8 @@ class Simulator(Calibrator):
         # Calculate the appropriate time deltas
         time_deltas = np.array([(len(df_apy)-i)*SECONDS_IN_DAY/self.tMax for i in range(len(df_apy))])
         for token in tokens:
-            alpha = self.a_values_dict[token]*self.b_values_dict[token]
-            beta = self.a_values_dict[token]
+            alpha = self.a_values_dict[token]*self.b_values_dict[token]*alpha_factor
+            beta = self.a_values_dict[token]*beta_factor
             sigma = self.sigma_dict[token]*F
 
             k = 4*alpha/sigma**2

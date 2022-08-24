@@ -24,5 +24,5 @@ AMOUNT_VARIABLE = -1000
 ACCRUED_VARIABLE_FACTOR = 0.02
 
 # Market factors for the bullish and bearish fixed rates
-FT_FACTOR = 0.3
-FT_ERROR = 0.01
+FT_FACTOR = 0.01
+FT_ERROR = 0.001

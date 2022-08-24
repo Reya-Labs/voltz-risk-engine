@@ -19,7 +19,7 @@ def getPreparedRNIData(df_input):
     df.set_index("date", inplace=True)
 
     # transform dates into unix timestamps
-    df_unix_time = date_to_unix_time(df, df.index, separator=" ", timezone_separator=None)
+    df_unix_time = date_to_unix_time(df, df.index, separator="T", timezone_separator=None)
 
     # ``liquidity index`` is de-scaled (by 10**27)
     floating_rni = []
