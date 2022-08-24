@@ -33,9 +33,9 @@ def normalise(array):
         raise Exception("ERROR: minimum and maximum values coincide in array normalisation. Check inputs!")
         #return 1
 
-def main(out_name, tau_u=1.5, tau_d=0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3, lookback=10, lookback_standard=10,\
-    r_init_lm=0.3, r_init_im=0.1, lambda_fee=0.1, gamma_fee=0.003, alpha_factor=1, beta_factor=1, sigma_factor=1, \
-    xi_lower=56, xi_upper=39, eta_lm=0.001, eta_im=0.002, write_all_out=False, sim_dir=None, debug=False, return_df=False):
+def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lambda_fee=0.1, gamma_fee=0.003, \
+        alpha_factor=1, beta_factor=1, sigma_factor=1, xi_lower=56, xi_upper=39, eta_lm=0.001, eta_im=0.002, \
+        write_all_out=False, sim_dir=None, debug=False, return_df=False):
 
     # Generate a simulation-specific directory, based on different tuneable parameters
     if sim_dir is None:
@@ -98,15 +98,6 @@ def main(out_name, tau_u=1.5, tau_d=0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3,
         xiUpper=XI_UPPER, 
         xiLower=XI_LOWER, 
         tMax=SECONDS_IN_YEAR, 
-        devMulLeftUnwindLM=dev_lm,
-        devMulRightUnwindLM=dev_lm,
-        devMulLeftUnwindIM=dev_im,
-        devMulRightUnwindIM=dev_im,
-        fixedRateDeviationMinLeftUnwindLM=r_init_lm,
-        fixedRateDeviationMinRightUnwindLM=r_init_lm,
-        fixedRateDeviationMinLeftUnwindIM=r_init_im,
-        fixedRateDeviationMinRightUnwindIM=r_init_im,
-        gamma=gamma_unwind,
         minMarginToIncentiviseLiquidators=MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS,
         etaLM=eta_lm,
         etaIM=eta_im
@@ -231,10 +222,6 @@ def main(out_name, tau_u=1.5, tau_d=0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3,
     meanLevFT = mp.dict_to_df(summary_dict, "Leverage FT", "Leverage").stack().values.flatten().mean()
     
     # Normalise and get the means
-    #meanSR = normalise(flatSR).mean()  
-    #meanU = 0 if np.all(flatU==0) else normalise(flatU).mean() 
-    #meanLiq = 0 if np.all(flatLiq==0) else normalise(flatLiq).mean() 
-    #meanFee =  np.array(fee_collector).mean() 
     meanLev = normalise(flatLev).mean() 
     stdLev = normalise(flatLev).std() 
     
@@ -258,10 +245,6 @@ def main(out_name, tau_u=1.5, tau_d=0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3,
         print("flatU: ", flatU)
         print("flatLiq: ", flatLiq)
         print("flatLev: ", flatLev)
-        #print("meanSR: ", meanSR)
-        #print("meanFee: ", meanFee)
-        #print("meanU: ", meanU)
-        #print("meanLiq: ", meanLiq)
         print("meanLev: ", meanLev)
         print("meanLVaR_LP: ", meanLVaR_LP)
         print("meanLVaR_FT: ", meanLVaR_FT)
@@ -279,17 +262,9 @@ def main(out_name, tau_u=1.5, tau_d=0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3,
     if RUN_OPTUNA:
         # Maximise this -- use the VaRs for regularisation
         l_var_lim, i_var_lim = 0.05, 0.05
-        l_var_lim_FT, l_var_lim_VT, l_var_lim_LP = 0.0, 0.0, 0.0
-        gap_lim = 0.05 # We want to maintain a small gap between all closing margins
         eta_gap = eta_im-eta_lm
         obj = meanLev -10*int(meanLVaR_FT < l_var_lim) -10*int(meanLVaR_VT < l_var_lim) -10*int(meanLVaR_LP < l_var_lim) \
-            -10*int(dev_im < dev_lm) -10*int(meanLevFT < 20) -10*int(eta_gap < 0.0005)
-        """
-        - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
-            - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
-                - 10*int(meanLVaR_VT < l_var_lim) - 10*int(meanIVaR_VT < i_var_lim) - 10*int(dev_im < dev_lm) \
-                   # -10*int(meanLevFT < 20) - 10*int(minGap_FT < gap_lim) - 10*int(minGap_VT < gap_lim) -10*int(minGap_LP < gap_lim)
-        """
+                -10*int(meanLevFT < 20) -10*int(eta_gap < 0.0005)
 
         return obj
 
@@ -297,11 +272,6 @@ def run_with_a_single_set_of_params(parser):
 
     parser.add_argument("-tu", "--tau_u", type=float, help="tau_u tuneable parameter", default=1.5)
     parser.add_argument("-td", "--tau_d", type=float, help="tau_d tuneable parameter", default=0.7)
-    parser.add_argument("-gamu", "--gamma_unwind", type=float, help="Gamma tuneable param. for counterfactual unwind", default=1.)
-    parser.add_argument("-dlm", "--dev_lm", type=float, help="Tuneable scale for the LM counterfactual unwind", default=0.5)
-    parser.add_argument("-dim", "--dev_im", type=float, help="Tuneable scale for the IM counterfactual unwind", default=0.3)
-    parser.add_argument("-rlm", "--r_init_lm", type=float, help="Initial rate for LM counterfactual unwind", default=0.3)
-    parser.add_argument("-rim", "--r_init_im", type=float, help="Initial rate for IM counterfactual unwind", default=0.1)
     parser.add_argument("-lam", "--lambda_fee", type=float, help="lambda fee parameter", default=0.1)
     parser.add_argument("-gamf", "--gamma_fee", type=float, help="gamma fee parameter", default=0.03)
     parser.add_argument("-a", "--alpha_factor", type=float, help="Multiplier for the mean-reversion speed", default=1)
@@ -315,7 +285,6 @@ def run_with_a_single_set_of_params(parser):
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode", default=False)
     parser.add_argument("-eim", "--eta_im", type=float, help="IM multiplier for minimum margin requirement", default=0.002)
     parser.add_argument("-elm", "--eta_lm", type=float, help="LM multiplier for minimum margin requirement", default=0.001)
-    parser.add_argument("-xid", "--xi_lower", type=float, help="xiLower for APY bounds", default=56)
 
     tuneables = parser.parse_args()
 
@@ -330,19 +299,14 @@ def objective(trial):
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     tau_u = trial.suggest_float("tau_u", 1.0001, 2, log=True)
     tau_d = trial.suggest_float("tau_d", 0.5, 1, log=True)
-    gamma_unwind = trial.suggest_float("gamma_unwind", 0.1, 10, log=True)
-    dev_lm = trial.suggest_float("dev_lm", 0.1, 10, log=True)
-    dev_im = trial.suggest_float("dev_im", 0.1, 10, log=True)
-    r_init_lm = trial.suggest_float("r_init_lm", 0.001, 0.2, log=True)
-    r_init_im = trial.suggest_float("r_init_im", 0.001, 0.2, log=True)
     lookback = trial.suggest_int("lookback", 10, 15, log=True) 
     alpha_factor = trial.suggest_float("alpha_factor", 0.5, 1.5, log=True) 
     beta_factor = trial.suggest_float("beta_factor", 0.5, 1.5, log=True) 
     sigma_factor = trial.suggest_float("sigma_factor", 0.5, 2.0, log=True) 
     xi_upper = trial.suggest_int("xi_upper", 19, 78, log=True) 
     xi_lower = trial.suggest_int("xi_lower", 28, 112, log=True) 
-    eta_im = trial.suggest_int("eta_im", 0.0005, 0.005, log=True) 
-    eta_lm = trial.suggest_int("eta_lm", 0.0005, 0.005, log=True) 
+    eta_im = trial.suggest_float("eta_im", 0.0005, 0.005, log=True) 
+    eta_lm = trial.suggest_float("eta_lm", 0.0005, 0.005, log=True) 
     
     # Default protocol fee constraints for v1
     # Here we summarise default fee struccture parameters for v1
@@ -350,8 +314,7 @@ def objective(trial):
     gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
 
     obj = main(out_name=f"df_{DF_TO_OPTIMIZE}_RiskEngineModel",
-                        tau_u=tau_u, tau_d=tau_d, gamma_unwind=gamma_unwind, dev_lm=dev_lm,
-                        dev_im=dev_im, r_init_im=r_init_im, r_init_lm=r_init_lm, lambda_fee=lambda_fee,
+                        tau_u=tau_u, tau_d=tau_d, lambda_fee=lambda_fee,
                         gamma_fee=gamma_fee, alpha_factor=alpha_factor, beta_factor=beta_factor,
                         sigma_factor=sigma_factor, xi_lower=xi_lower, xi_upper=xi_upper, eta_im=eta_im, eta_lm=eta_lm,
                         lookback_standard=10, lookback=lookback
@@ -384,9 +347,6 @@ def run_param_optimization(parser):
     
     fig = optuna.visualization.plot_optimization_history(study)
     fig.write_image(out_dir+f"optuna_history_{DF_TO_OPTIMIZE}.png")
-
-    #fig = optuna.visualization.plot_param_importances(study)
-    #fig.write_image(out_dir+f"optuna_importances_{DF_TO_OPTIMIZE}.png")
     
     with open(out_dir+f"optimised_parameters_{DF_TO_OPTIMIZE}.json", "w") as fp:
         json.dump(trial.params, fp, indent=4)

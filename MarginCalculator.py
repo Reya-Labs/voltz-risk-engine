@@ -10,10 +10,7 @@ from utils import SECONDS_IN_YEAR, date_to_unix_time, generate_margin_requiremen
 class MarginCalculator:
 
     def __init__(self, apyUpperMultiplier, apyLowerMultiplier, sigmaSquared, alpha, beta, xiUpper, xiLower, 
-                 etaLM, etaIM, tMax, devMulLeftUnwindLM, devMulRightUnwindLM, devMulLeftUnwindIM, devMulRightUnwindIM,
-                 fixedRateDeviationMinLeftUnwindLM, fixedRateDeviationMinRightUnwindLM,
-                 fixedRateDeviationMinLeftUnwindIM, fixedRateDeviationMinRightUnwindIM,
-                 gamma, minMarginToIncentiviseLiquidators):
+                 etaLM, etaIM, tMax, minMarginToIncentiviseLiquidators):
 
         # ref: https://github.com/Voltz-Protocol/voltz-core/blob/39da8d657df2bb7ce2e0260e635b2202c3d8d82d/contracts/interfaces/IMarginEngine.sol#L16
 
@@ -27,15 +24,6 @@ class MarginCalculator:
         self.etaLM = etaLM 
         self.etaIM = etaIM
         self.tMax = tMax
-        self.devMulLeftUnwindLM = devMulLeftUnwindLM
-        self.devMulRightUnwindLM = devMulRightUnwindLM
-        self.devMulLeftUnwindIM = devMulLeftUnwindIM
-        self.devMulRightUnwindIM = devMulRightUnwindIM
-        self.fixedRateDeviationMinLeftUnwindLM = fixedRateDeviationMinLeftUnwindLM
-        self.fixedRateDeviationMinRightUnwindLM = fixedRateDeviationMinRightUnwindLM
-        self.fixedRateDeviationMinLeftUnwindIM = fixedRateDeviationMinLeftUnwindIM
-        self.fixedRateDeviationMinRightUnwindIM = fixedRateDeviationMinRightUnwindIM
-        self.gamma = gamma
         self.minMarginToIncentiviseLiquidators = minMarginToIncentiviseLiquidators
 
     # tested
@@ -85,9 +73,11 @@ class MarginCalculator:
             margin = -maxCashflowDeltaToCoverPostMaturity
         else:
             margin = 0
-
-        minimumMarginRequirement = abs(variableTokenBalance) * self.etaLM if isLM else abs(variableTokenBalance) * self.etaIM
-        minimumMarginRequirement = minimumMarginRequirement * timeInSecondsFromNowToMaturity/SECONDS_IN_YEAR
+  
+        minimumMarginRequirement = self.getMinimumMarginRequirement(variableTokenBalance=variableTokenBalance,
+                                                                    currentTimestamp=currentTimestamp,
+                                                                    termEndTimestamp=termEndTimestamp,
+                                                                    isLM=isLM)
 
         if margin < minimumMarginRequirement:
             margin = minimumMarginRequirement
@@ -96,6 +86,15 @@ class MarginCalculator:
             margin = self.minMarginToIncentiviseLiquidators
 
         return margin
+
+    # Updated minimum margin requirement -- needs testing
+    def getMinimumMarginRequirement(self, variableTokenBalance, currentTimestamp, termEndTimestamp, isLM):
+        timeInSecondsFromNowToMaturity = termEndTimestamp - currentTimestamp
+        
+        minimumMarginRequirement = abs(variableTokenBalance) * self.etaLM if isLM else abs(variableTokenBalance) * self.etaIM
+        minimumMarginRequirement = minimumMarginRequirement * timeInSecondsFromNowToMaturity/SECONDS_IN_YEAR
+
+        return minimumMarginRequirement
 
     # inherintely tested
     def calculateFixedTokenBalance(self, amountFixed, excessBalance, termStartTimestamp, termEndTimestamp,
