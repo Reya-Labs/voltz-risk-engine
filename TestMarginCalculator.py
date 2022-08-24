@@ -107,8 +107,9 @@ class TestMarginCalculator(unittest.TestCase):
         isLM = True
         lowerApyBound = None
         upperApyBound = 0.107510526004699684
+        accruedVariableFactor = 0
 
-        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound, accruedVariableFactor)
 
         self.assertAlmostEqual(realized, 0.004123691408, delta=1e-6)
 
@@ -117,8 +118,9 @@ class TestMarginCalculator(unittest.TestCase):
         isLM = False
         lowerApyBound = None
         upperApyBound = 0.107510526004699684
+        accruedVariableFactor = 0
 
-        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound, accruedVariableFactor)
 
         self.assertAlmostEqual(realized, 0.00618553711259916, delta=1e-6)
 
@@ -127,8 +129,9 @@ class TestMarginCalculator(unittest.TestCase):
         isLM = True
         lowerApyBound = 0.092372593455489616
         upperApyBound = None
+        accruedVariableFactor = 0
 
-        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound, accruedVariableFactor)
 
         self.assertAlmostEqual(realized, 0.003543058379114670, delta=1e-6)
 
@@ -137,8 +140,9 @@ class TestMarginCalculator(unittest.TestCase):
         isLM = False
         lowerApyBound = 0.092372593455489616
         upperApyBound = None
+        accruedVariableFactor = 0
 
-        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound, accruedVariableFactor)
 
         self.assertAlmostEqual(realized, 0.002480140865380269, delta=1e-6)
 
@@ -303,6 +307,7 @@ class TestMarginCalculator(unittest.TestCase):
         lowerApyBound = 0.000356854230859285
         upperApyBound = 0.001297056207122100
 
+        print("Test-A:")
         realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
@@ -325,11 +330,13 @@ class TestMarginCalculator(unittest.TestCase):
         lowerApyBound = 0.000356854230859285
         upperApyBound = 0.001297056207122100
 
+        print("Test-B:")
         realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
 
-        self.assertAlmostEqual(realized, 0.2886377911, delta=1e-3)
+        # minimum margin requirement
+        self.assertAlmostEqual(realized, 0.0039717, delta=1e-3)
 
 
         variableFactor = 0
@@ -347,6 +354,7 @@ class TestMarginCalculator(unittest.TestCase):
         lowerApyBound = 0.000356854230859285
         upperApyBound = 0.001297056207122100
 
+        print("Test-C:")
         realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
@@ -369,6 +377,7 @@ class TestMarginCalculator(unittest.TestCase):
         lowerApyBound = 0.000356854230859285
         upperApyBound = 0.001297056207122100
 
+        print("Test-D:")
         realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
@@ -395,6 +404,7 @@ class TestMarginCalculator(unittest.TestCase):
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
 
+        print("Test-E:")
         self.assertAlmostEqual(realized, 0.13290739135, delta=1e-3)
 
 
@@ -413,6 +423,7 @@ class TestMarginCalculator(unittest.TestCase):
         lowerApyBound = 0.000356854230859285
         upperApyBound = 0.001297056207122100
 
+        print("Test-F:")
         realized = self.marginCalculator.getPositionMarginRequirement(variableFactor, currentTick, positionLiquidity, tickLower, tickUpper, sqrtPrice,
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)

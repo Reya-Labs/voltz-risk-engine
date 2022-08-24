@@ -40,6 +40,11 @@ class MarginCalculator:
 
 
         variableFactor = rateFromStart * (apyBound * timeInYearsFromNowToMaturity + 1) - 1
+
+        print("IN WC_VF:", timeInSecondsFromNowToMaturity)
+        print("IN_WC_VF:", variableFactor)
+        print("IN_WC_VF:", timeInYearsFromNowToMaturity * apyBound)
+
         return variableFactor
 
     # inherintely tested
