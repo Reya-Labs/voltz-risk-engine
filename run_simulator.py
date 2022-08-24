@@ -35,7 +35,7 @@ def normalise(array):
 
 def main(out_name, tau_u=1.5, tau_d=0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3, lookback=10, lookback_standard=10,\
     r_init_lm=0.3, r_init_im=0.1, lambda_fee=0.1, gamma_fee=0.003, alpha_factor=1, beta_factor=1, sigma_factor=1, \
-    xi_lower=56, xi_upper=39, write_all_out=False, sim_dir=None, debug=False, return_df=False):
+    xi_lower=56, xi_upper=39, eta_lm=0.001, eta_im=0.002, write_all_out=False, sim_dir=None, debug=False, return_df=False):
 
     # Generate a simulation-specific directory, based on different tuneable parameters
     if sim_dir is None:
@@ -108,6 +108,8 @@ def main(out_name, tau_u=1.5, tau_d=0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3,
         fixedRateDeviationMinRightUnwindIM=r_init_im,
         gamma=gamma_unwind,
         minMarginToIncentiviseLiquidators=MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS,
+        etaLM=eta_lm,
+        etaIM=eta_im
     )
  
     # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -279,7 +281,9 @@ def main(out_name, tau_u=1.5, tau_d=0.7, gamma_unwind=1, dev_lm=0.5, dev_im=0.3,
         l_var_lim, i_var_lim = 0.05, 0.05
         l_var_lim_FT, l_var_lim_VT, l_var_lim_LP = 0.0, 0.0, 0.0
         gap_lim = 0.05 # We want to maintain a small gap between all closing margins
-        obj = meanLev -10*int(meanLVaR_FT < l_var_lim) -10*int(meanLVaR_VT < l_var_lim) -10*int(meanLVaR_LP < l_var_lim) -10*int(dev_im < dev_lm) -10*int(meanLevFT < 20) 
+        eta_gap = eta_im-eta_lm
+        obj = meanLev -10*int(meanLVaR_FT < l_var_lim) -10*int(meanLVaR_VT < l_var_lim) -10*int(meanLVaR_LP < l_var_lim) \
+            -10*int(dev_im < dev_lm) -10*int(meanLevFT < 20) -10*int(eta_gap < 0.0005)
         """
         - 10*int(meanLVaR_LP < l_var_lim) - 10*int(meanIVaR_LP < i_var_lim) \
             - 10*int(meanLVaR_FT < l_var_lim) - 10*int(meanIVaR_FT < i_var_lim) \
@@ -309,6 +313,9 @@ def run_with_a_single_set_of_params(parser):
     parser.add_argument("-ls", "--lookback_standard", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=30)
     parser.add_argument("-w", "--write_all_out", action="store_true", help="Save all simulation runs to different DataFrames", default=False)
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode", default=False)
+    parser.add_argument("-eim", "--eta_im", type=float, help="IM multiplier for minimum margin requirement", default=0.002)
+    parser.add_argument("-elm", "--eta_lm", type=float, help="LM multiplier for minimum margin requirement", default=0.001)
+    parser.add_argument("-xid", "--xi_lower", type=float, help="xiLower for APY bounds", default=56)
 
     tuneables = parser.parse_args()
 
@@ -320,22 +327,6 @@ def run_with_a_single_set_of_params(parser):
 
 def objective(trial):
 
-    """
-    tau_u = trial.suggest_categorical("tau_u", np.linspace(1.0001, 10, 100).tolist(), log=True)
-    tau_d = trial.suggest_categorical("tau_d", np.linspace(0.0001, 1, 1000).tolist(), log=True)
-    gamma_unwind = trial.suggest_categorical("gamma_unwind", np.linspace(0.0001, 10, 1000).tolist(), log=True)
-    dev_lm = trial.suggest_categorical("dev_lm", np.linspace(0.0001, 10, 1000).tolist(), log=True)
-    dev_im = trial.suggest_categorical("dev_im", np.linspace(0.0001, 10, 1000).tolist(), log=True)
-    r_init_lm = trial.suggest_categorical("r_init_lm", np.linspace(0.001, 0.2, 100).tolist(), log=True)
-    r_init_im = trial.suggest_categorical("r_init_im", np.linspace(0.001, 0.2, 100).tolist(), log=True)
-    #a_factor = trial.suggest_categorical("a_factor", np.linspace(0.5, 5, 50).tolist())
-    #b_factor = trial.suggest_categorical("b_factor", np.linspace(0.3, 3, 50).tolist())
-    lookback = trial.suggest_categorical("lookback", np.arange(10, 15, 1).tolist(), log=True) 
-    #lookback = trial.suggest_categorical("lookback", np.arange(3, 40, 1).tolist()) 
-    #lambda_fee = trial.suggest_categorical("lambda_fee", np.linspace(0.001, 0.1, 100).tolist()) 
-    #gamma_fee = trial.suggest_categorical("gamma_fee", np.linspace(0.0003, 0.03, 100).tolist()) 
-    """
-    
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     tau_u = trial.suggest_float("tau_u", 1.0001, 2, log=True)
     tau_d = trial.suggest_float("tau_d", 0.5, 1, log=True)
@@ -350,6 +341,8 @@ def objective(trial):
     sigma_factor = trial.suggest_float("sigma_factor", 0.5, 2.0, log=True) 
     xi_upper = trial.suggest_int("xi_upper", 19, 78, log=True) 
     xi_lower = trial.suggest_int("xi_lower", 28, 112, log=True) 
+    eta_im = trial.suggest_int("eta_im", 0.0005, 0.005, log=True) 
+    eta_lm = trial.suggest_int("eta_lm", 0.0005, 0.005, log=True) 
     
     # Default protocol fee constraints for v1
     # Here we summarise default fee struccture parameters for v1
@@ -360,7 +353,7 @@ def objective(trial):
                         tau_u=tau_u, tau_d=tau_d, gamma_unwind=gamma_unwind, dev_lm=dev_lm,
                         dev_im=dev_im, r_init_im=r_init_im, r_init_lm=r_init_lm, lambda_fee=lambda_fee,
                         gamma_fee=gamma_fee, alpha_factor=alpha_factor, beta_factor=beta_factor,
-                        sigma_factor=sigma_factor, xi_lower=xi_lower, xi_upper=xi_upper,
+                        sigma_factor=sigma_factor, xi_lower=xi_lower, xi_upper=xi_upper, eta_im=eta_im, eta_lm=eta_lm,
                         lookback_standard=10, lookback=lookback
     )
 
