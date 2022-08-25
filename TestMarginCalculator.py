@@ -107,8 +107,9 @@ class TestMarginCalculator(unittest.TestCase):
         isLM = True
         lowerApyBound = None
         upperApyBound = 0.107510526004699684
+        accruedVariableFactor = 0
 
-        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound, accruedVariableFactor)
 
         self.assertAlmostEqual(realized, 0.004123691408, delta=1e-6)
 
@@ -117,8 +118,9 @@ class TestMarginCalculator(unittest.TestCase):
         isLM = False
         lowerApyBound = None
         upperApyBound = 0.107510526004699684
+        accruedVariableFactor = 0
 
-        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound, accruedVariableFactor)
 
         self.assertAlmostEqual(realized, 0.00618553711259916, delta=1e-6)
 
@@ -127,8 +129,9 @@ class TestMarginCalculator(unittest.TestCase):
         isLM = True
         lowerApyBound = 0.092372593455489616
         upperApyBound = None
+        accruedVariableFactor = 0
 
-        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound, accruedVariableFactor)
 
         self.assertAlmostEqual(realized, 0.003543058379114670, delta=1e-6)
 
@@ -137,8 +140,9 @@ class TestMarginCalculator(unittest.TestCase):
         isLM = False
         lowerApyBound = 0.092372593455489616
         upperApyBound = None
+        accruedVariableFactor = 0
 
-        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound)
+        realized = self.marginCalculator.worstCaseVariableFactorAtMaturity(timeInSecondsFromStartToMaturity, isFT, isLM, lowerApyBound, upperApyBound, accruedVariableFactor)
 
         self.assertAlmostEqual(realized, 0.002480140865380269, delta=1e-6)
 
@@ -212,7 +216,7 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 11.424182354226593680, delta=1e-3) # Update value
+        self.assertAlmostEqual(realized, 0.057534246575342465, delta=1e-3) # Update value
 
 
         fixedTokenBalance = 10
@@ -230,7 +234,7 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 116159.629843635797628803, delta=10) # Update value
+        self.assertAlmostEqual(realized, 746.2495986198234, delta=10) # Update value
 
 
         fixedTokenBalance = 1000
@@ -248,7 +252,7 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 11.752037636084398722, delta=1) # Update value
+        self.assertAlmostEqual(realized, 0.11506849315068493, delta=1) # Update value
 
  
         fixedTokenBalance = -1000
@@ -284,7 +288,25 @@ class TestMarginCalculator(unittest.TestCase):
                              lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
                              currentTimestamp, accruedVariableFactor)
 
-        self.assertAlmostEqual(realized, 0.927603785405792000, delta=1e-3) # Update value
+        self.assertAlmostEqual(realized, 1.1506849315068493, delta=1e-3) # Update value
+
+
+        fixedTokenBalance = 1000
+        variableTokenBalance = -1000
+        isLM = False
+        sqrtPrice = fixedRateToSqrtPrice(1)
+        lowerApyBound = 0.005
+        upperApyBound = 0.02
+        termStartTimestamp = TERM_START_TIMESTAMP - SECONDS_IN_WEEK
+        termEndTimestamp = TERM_START_TIMESTAMP + SECONDS_IN_WEEK
+        currentTimestamp = TERM_START_TIMESTAMP
+        accruedVariableFactor = 0.000193718001937 # accrued apy of 1%
+
+        realized = self.marginCalculator.getMarginRequirement(fixedTokenBalance, variableTokenBalance, isLM, sqrtPrice,
+                             lowerApyBound, upperApyBound, termStartTimestamp, termEndTimestamp,
+                             currentTimestamp, accruedVariableFactor)
+
+        self.assertAlmostEqual(realized, 0.3856102780477994, delta=1e-3) # Update value
 
 
     def test_get_position_margin_requirement(self):
@@ -329,7 +351,8 @@ class TestMarginCalculator(unittest.TestCase):
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
 
-        self.assertAlmostEqual(realized, 0.2886377911, delta=1e-3)
+        # minimum margin requirement
+        self.assertAlmostEqual(realized, 0.0039717, delta=1e-3)
 
 
         variableFactor = 0
@@ -373,7 +396,7 @@ class TestMarginCalculator(unittest.TestCase):
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
 
-        self.assertAlmostEqual(realized, 0.13290739135, delta=1e-3)
+        self.assertAlmostEqual(realized, 0.11092521127707744, delta=1e-3)
 
 
         variableFactor = 0
@@ -395,7 +418,7 @@ class TestMarginCalculator(unittest.TestCase):
                                      termStartTimestamp, termEndTimestamp, currentTimestamp, positionVariableTokenBalance,
                                      positionFixedTokenBalance, isLM, lowerApyBound, upperApyBound)
 
-        self.assertAlmostEqual(realized, 0.13290739135, delta=1e-3)
+        self.assertAlmostEqual(realized, 0.0035243990078962597, delta=1e-3)
 
 
         variableFactor = 0
