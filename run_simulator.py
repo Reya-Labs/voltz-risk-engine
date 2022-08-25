@@ -20,7 +20,7 @@ RUN_OPTUNA = False
 DF_TO_OPTIMIZE = "aave_borrow"
 
 # Positions
-POSITION = "RiskEngineOptimisation_borrow_aWETH_4_months_FTLev"
+POSITION = "RiskEngineOptimisation_borrow_aUSDC_V2"
 pos = position[POSITION]
 top_dir = f"./simulations/{POSITION}/"
 
@@ -31,7 +31,6 @@ def normalise(array):
         return (array-array.min())/(array.max()-array.min())
     else:
         raise Exception("ERROR: minimum and maximum values coincide in array normalisation. Check inputs!")
-        #return 1
 
 def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lambda_fee=0.1, gamma_fee=0.003, \
         alpha_factor=1, beta_factor=1, sigma_factor=1, xi_lower=56, xi_upper=39, eta_lm=0.001, eta_im=0.002, \
@@ -55,7 +54,7 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
 
     df.set_index("date", inplace=True)
     df_for_values.set_index("date", inplace=True)
-
+    
     # We need to make sure that the DataFrame does not contain NaNs because of a lookback window that
     # is too large
     if len(df)-lookback <= pos["pool_size"]:

@@ -7,11 +7,16 @@ from Simulator import Simulator
 from utils import SECONDS_IN_YEAR
 from RNItoAPY import * 
 
-DF_TO_OPTIMIZE = "aave_borrow"
-POSITION = "RiskEngineOptimisation_borrow_aWETH_4_months_FTLev" 
-#dev_lm_factor, dev_im_factor, tau_u_factor, tau_d_factor = 0.5, 1.5, 1.0, 1.0 # Factors for stETH
-#dev_lm_factor, dev_im_factor, tau_u_factor, tau_d_factor, sigma_factor = 1.0, 1.0, 1.2, 0.5, 0.75 # cUSDT
-dev_lm_factor, dev_im_factor, tau_u_factor, tau_d_factor, sigma_factor = 0.3, 0.1, 1.0, 0.8, 1.0 # aUSDC
+DF_TO_OPTIMIZE = "rocket"
+POSITION = "RiskEngineOptimisation_lend_rETH_V2" 
+tau_u_factor, tau_d_factor, sigma_factor = 1, 0.1, 0.75 #rETH lend
+#tau_u_factor, tau_d_factor, sigma_factor = 1.2, 1, 1 #stETH lend
+#tau_u_factor, tau_d_factor, sigma_factor = 1.7, 0.3, 0.75 #aUSDC and aDAI lend
+#tau_u_factor, tau_d_factor, sigma_factor = 3.0, 0.1, 1 #cDAI lend
+#tau_u_factor, tau_d_factor, sigma_factor = 0.7, 1, 1 #aUSDC borrow
+#tau_u_factor, tau_d_factor, sigma_factor = 1.5, 0.2, 0.75 #aWETH borrow
+#tau_u_factor, tau_d_factor, sigma_factor = 1, 1, 0.75 #cUSDT borrow
+
 pos = position[POSITION]
 WAD = 1e18
 # Pick up the optimised parameters 
@@ -42,14 +47,10 @@ alpha = a*b*params["alpha_factor"]
 beta = a*params["beta_factor"]
 sigma_squared = (sigma*params["sigma_factor"]*sigma_factor)**2
 
-all_params = ["tau_u", "tau_d", "gamma_unwind", "dev_lm", "dev_im", "lookback", "r_init_lm", "r_init_im", "xi_lower", "xi_upper"]
+all_params = ["tau_u", "tau_d", "eta_im", "eta_lm", "lookback", "xi_lower", "xi_upper"]
 final_params = {}
 for p in all_params:
-    if p=="dev_lm":
-        final_params[p] = params[p]*dev_lm_factor
-    elif p=="dev_im":
-        final_params[p] = params[p]*dev_im_factor
-    elif p=="tau_u":
+    if p=="tau_u":
         final_params[p] = params[p]*tau_u_factor
     elif p=="tau_d":
         final_params[p] = params[p]*tau_d_factor
@@ -62,8 +63,6 @@ final_params["lambda_fee"] = 0
 final_params["alpha"] = alpha*WAD
 final_params["beta"] = beta*WAD
 final_params["sigma_squared"] = sigma_squared*WAD
-final_params["xi_lower"] = 19*WAD
-#final_params["xi_upper"] = 39*WAD
 
 for k, v in final_params.items():
-    print(k, ": ", v)
+    print(k, ": ", "{0:.0f}".format(v))

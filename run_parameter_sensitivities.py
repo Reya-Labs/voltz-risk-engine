@@ -53,18 +53,32 @@ def main(parser):
     starts = {
         "FT liquidation margin": "mr_lm_ft_", 
         "FT initial margin": "mr_im_ft_", 
+        #"FT minimum margin": "mmr_im_ft_", 
+        "FT exp1 IM (fixed term)": "exp1_im_ft_", 
+        "FT exp2 IM (variable term)": "exp2_im_ft_", 
+        "FT exp1 LM (fixed term)": "exp1_lm_ft_", 
+        "FT exp2 LM (variable term)": "exp2_lm_ft_", 
         #"FT net margin": "net_margin_ft_", 
         #"FT PnL": "pnl_ft_", 
         "VT liquidation margin": "mr_lm_vt_", 
         "VT initial margin": "mr_im_vt_", 
+        #"VT minimum margin": "mmr_im_vt_", 
+        "VT exp1 IM (fixed term)": "exp1_im_vt_", 
+        "VT exp2 IM (variable term)": "exp2_im_vt_", 
+        "VT exp1 LM (fixed term)": "exp1_lm_vt_", 
+        "VT exp2 LM (variable term)": "exp2_lm_vt_", 
         #"VT net margin": "net_margin_vt_", 
         #"VT PnL": "pnl_vt_", 
         "LP liquidation margin": "mr_lm_lp_", 
         "LP initial margin": "mr_im_lp_",
         #"LP net margin": "net_margin_lp_", 
         #"LP PnL": "lp_pnl", 
+        "APY lower bound": "lower",
+        "APY upper bound": "upper",
+        "Variable factor": "variable factor",
+        "Rate": "rate",
+        "Liquidity index": "liquidity_index"
     }
-
     for key, value in starts.items():
         df_summary = pd.DataFrame()
         for factor in factors:
@@ -84,6 +98,7 @@ def main(parser):
     new_factor = 1.0
     df_sensitivity = {}
     print(params_all)
+    params_all["sigma_factor"] = params_all["sigma_factor"]*0.75
     print(params_all)
     df_sensitivity[new_factor] = run_simulator.main(out_name=f"df_{DF_TO_OPTIMIZE}_RiskEngineModel_Factor{factor}", **params_all, return_df=True)
     if update_param!="lookback":
@@ -118,7 +133,7 @@ def main(parser):
         plt.tight_layout()
         plt.savefig(f"./simulations/sensitivity_studies/{POSITION}/LP_margins.png")
         plt.close()
-        
+        """
         df_summary.iloc[:-1][["FT leverage", "VT leverage"]].plot(rot=45, title="Leverages")
         plt.ylabel("Leverage [x]")
         plt.xlabel("Timestamp")
@@ -127,6 +142,7 @@ def main(parser):
         plt.tight_layout()
         plt.savefig(f"./simulations/sensitivity_studies/{POSITION}/FT_VT_Leverages.png")
         plt.close()
+        """
 
 if __name__=="__main__":
     from argparse import ArgumentParser

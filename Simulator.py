@@ -69,13 +69,12 @@ class Simulator(Calibrator):
             alpha = a*b*alpha_factor
             beta = a*beta_factor
             for i in range(1, len(df_deep_copy)):
-                #dapy = a*(b-apy_i)*dt + sigma * np.sqrt(apy_i) * np.random.normal(0,1,1)[0] * np.sqrt(dt) # Need a random seed for this
                 dapy = (alpha-beta*apy_i)*dt + sigma * np.sqrt(apy_i) * np.random.normal(0,1,1)[0] * np.sqrt(dt) # Need a random seed for this
                 apy_i += dapy
                 
                 # Add in protection against negative APYs in the modelling
                 if apy_i <= 0:
-                    apy_i = beta/100 # Some tolerance based on the average APY
+                    apy_i = abs(beta/100) # Some tolerance based on the average APY
                 
                 apy_model.append(apy_i)
             df_deep_copy[token + " model"] = apy_model

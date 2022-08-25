@@ -42,6 +42,34 @@ class MarginCalculator:
         variableFactor = rateFromStart * (apyBound * timeInYearsFromNowToMaturity + 1) - 1
         return variableFactor
 
+    # Extract the individual cashflow components
+    def getExp1(self, fixedTokenBalance, variableTokenBalance, termStartTimestamp, termEndTimestamp, currentTimestamp):
+        if (fixedTokenBalance >= 0) and (variableTokenBalance >= 0):
+            return 0
+
+        exp1 = fixedTokenBalance * \
+            self.fixedFactor(True, termStartTimestamp,
+                             termEndTimestamp, currentTimestamp)
+        
+        return exp1
+
+    def getExp2(self, fixedTokenBalance, variableTokenBalance, isLM, lowerApyBound, upperApyBound,
+                              termEndTimestamp, currentTimestamp, accruedVariableFactor):
+        if (fixedTokenBalance >= 0) and (variableTokenBalance >= 0):
+            return 0
+
+        timeInSecondsFromNowToMaturity = termEndTimestamp - currentTimestamp
+        exp2 = variableTokenBalance * self.worstCaseVariableFactorAtMaturity(
+            timeInSecondsFromNowToMaturity,
+            variableTokenBalance < 0,
+            isLM,
+            lowerApyBound,
+            upperApyBound,
+            accruedVariableFactor
+        )
+
+        return exp2
+    
     # inherintely tested
     def _getMarginRequirement(self, fixedTokenBalance, variableTokenBalance, isLM, lowerApyBound, upperApyBound,
                               termStartTimestamp, termEndTimestamp, currentTimestamp, accruedVariableFactor):
@@ -82,7 +110,7 @@ class MarginCalculator:
 
         return margin
 
-    # Updated minimum margin requirement -- needs testing
+    # tested
     def getMinimumMarginRequirement(self, variableTokenBalance, currentTimestamp, termEndTimestamp, isLM):
         timeInSecondsFromNowToMaturity = termEndTimestamp - currentTimestamp
         
