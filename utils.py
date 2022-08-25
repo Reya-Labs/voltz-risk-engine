@@ -146,32 +146,29 @@ def preprocess_df(df_input, token, fr_market="neutral"):
 
     return df
 
-
+# This method is deprecated as it creates steps in the liquidity index
 def compute_liquidity_index(row, df):
     if row.name <= 7:
         counterfactual_rate = df.loc[0, "rate"]
         return ((counterfactual_rate - 1) / 7) * row.name + 1
     else:
 
-        df = df.shift(row.name % 7).dropna().iloc[::7, :]
+        df = df.shift(row.name % 1).dropna().iloc[::7, :]
         df = df[df['date'] < row['date']]
         return df.loc[:, 'rate'].cumprod().iloc[-1] * row['rate']
 
+# New approach using a direct product of rates for computing the liquidity index
+def cumprod(lst):
+    results = []
+    cur = 1
+    for n in lst:
+        cur *= n
+        results.append(cur)
+    return results
 
 def calculate_liquidity_index(df):
-    # todo: move into a separate module/script
-    WEEK_IN_YEARS = 7 / 365  # rough approx
-
-    df.loc[:, 'rate'] = 1 + df.loc[:, 'apy'] * WEEK_IN_YEARS
-
-    df.loc[:, 'liquidity_index'] = df.apply(
-        compute_liquidity_index,
-        args=(df,),
-        axis=1
-    )
-
-    # calculate the rate week on week
-    # todo: also multiply by liquidity indicies for the first 7 rows
+    df.loc[:, 'rate'] = 1 + df.loc[:, 'apy']/365 # We convert to a daily APY for the daily rate calculation
+    df["liquidity_index"] = cumprod(df["rate"].values)
 
     return df
 
@@ -203,6 +200,33 @@ def compute_margin_requirement_df_row_trader(row, marginCalculator, termStartTim
         )
 
         return marginRequirement
+
+def compute_exp1_df_row_trader(row, marginCalculator, fixedTokenBalance, variableTokenBalance, 
+                                    termStartTimestamp, termEndTimestamp):
+    
+        exp1 = marginCalculator.getExp1(fixedTokenBalance=fixedTokenBalance, 
+                                        variableTokenBalance=variableTokenBalance, 
+                                        termStartTimestamp=termStartTimestamp, 
+                                        termEndTimestamp=termEndTimestamp, 
+                                        currentTimestamp=row["date"]
+                                        )
+        
+        return exp1
+
+def compute_exp2_df_row_trader(row, marginCalculator, fixedTokenBalance, variableTokenBalance, isLM, termEndTimestamp):
+        
+        exp2 = marginCalculator.getExp2(fixedTokenBalance=fixedTokenBalance, 
+                                        variableTokenBalance=variableTokenBalance, 
+                                        isLM=isLM,
+                                        lowerApyBound=row['lower'],
+                                        upperApyBound=row['upper'],
+                                        termEndTimestamp=termEndTimestamp, 
+                                        currentTimestamp=row["date"],
+                                        accruedVariableFactor=row['variable factor']
+                                        )
+        
+        return exp2
+
 
 def generate_pnl_trader(df, fixedFactorSeries, fixedTokenBalance, variableTokenBalance, trader_type, token):
 
@@ -249,14 +273,30 @@ def generate_margin_requirements_trader(marginCalculator, df, fixedTokenBalance,
                                                                                                          args=(marginCalculator, termEndTimestamp, variableTokenBalance, False),
                                                                                                          axis=1)
 
-        df.loc[:, f'mr_lm_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(compute_margin_requirement_df_row_trader,
+        df.loc[:, f'mr_lm_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}']  = df.apply(compute_margin_requirement_df_row_trader,
                                                                                                         args=(marginCalculator, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
-                                                                                                              True),
+                                                                                                            True),
                                                                                                         axis=1)
-
-        df.loc[:, f'mr_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}'] = df.apply(compute_margin_requirement_df_row_trader,
+        
+        df.loc[:, f'mr_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}']  = df.apply(compute_margin_requirement_df_row_trader,
                                                                                                         args=(marginCalculator, termStartTimestamp, termEndTimestamp, fixedTokenBalance, variableTokenBalance,
                                                                                                               False),
+                                                                                                        axis=1)
+        
+        df.loc[:, f'exp1_lm_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}']  = df.apply(compute_exp1_df_row_trader,
+                                                                                                        args=(marginCalculator, fixedTokenBalance, variableTokenBalance, termStartTimestamp, termEndTimestamp),
+                                                                                                        axis=1)
+        
+        df.loc[:, f'exp1_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}']  = df.apply(compute_exp1_df_row_trader,
+                                                                                                        args=(marginCalculator, fixedTokenBalance, variableTokenBalance, termStartTimestamp, termEndTimestamp),
+                                                                                                        axis=1)
+        
+        df.loc[:, f'exp2_lm_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}']  = df.apply(compute_exp2_df_row_trader,
+                                                                                                        args=(marginCalculator, fixedTokenBalance, variableTokenBalance, True, termEndTimestamp),
+                                                                                                        axis=1)
+        
+        df.loc[:, f'exp2_im_{trader_type}_{token}_{fixedTokenBalance}_{variableTokenBalance}']  = df.apply(compute_exp2_df_row_trader,
+                                                                                                        args=(marginCalculator, fixedTokenBalance, variableTokenBalance, False, termEndTimestamp),
                                                                                                         axis=1)
 
         return df
