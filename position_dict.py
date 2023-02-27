@@ -59,6 +59,21 @@ position = { # Specifiy the market parameters to run over -- many different exam
         "lp_var": 0,
         "tokens": ["USDC"]
     },
+    "RiskEngineOptimisation_lend_aUSDC_V3": {
+        "rate_ranges": [(1, 5)],
+        "fr_markets": ["neutral"],
+        # "fr_markets": ["neutral", "bear", "bull"],
+        # "f_values": [10],
+        "f_values": [1],
+        "leverage_factors": [1],
+        "notional": 1000,
+        "pool_size": 62,
+        "gamma_fee": 0.003,
+        "gamma_fees": None,
+        "lp_fix": 0,
+        "lp_var": 0,
+        "tokens": ["USDC"]
+    },
     "RiskEngineOptimisation_lend_cDAI_V2" : {
         "rate_ranges": [(1, 5)],
         "fr_markets": ["neutral"],

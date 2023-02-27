@@ -17,10 +17,10 @@ from RNItoAPY import *
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
 # Globals 
 RUN_OPTUNA = False
-DF_TO_OPTIMIZE = "aave_borrow"
+DF_TO_OPTIMIZE = "aave_v3_lend"
 
 # Positions
-POSITION = "RiskEngineOptimisation_borrow_aUSDC_V2"
+POSITION = "RiskEngineOptimisation_lend_aUSDC_V3"
 pos = position[POSITION]
 top_dir = f"./simulations/{POSITION}/"
 
@@ -269,21 +269,21 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
 
 def run_with_a_single_set_of_params(parser):
 
-    parser.add_argument("-tu", "--tau_u", type=float, help="tau_u tuneable parameter", default=1.5)
-    parser.add_argument("-td", "--tau_d", type=float, help="tau_d tuneable parameter", default=0.7)
+    parser.add_argument("-tu", "--tau_u", type=float, help="tau_u tuneable parameter", default=1.99)
+    parser.add_argument("-td", "--tau_d", type=float, help="tau_d tuneable parameter", default=0.5)
     parser.add_argument("-lam", "--lambda_fee", type=float, help="lambda fee parameter", default=0.1)
     parser.add_argument("-gamf", "--gamma_fee", type=float, help="gamma fee parameter", default=0.03)
-    parser.add_argument("-a", "--alpha_factor", type=float, help="Multiplier for the mean-reversion speed", default=1)
-    parser.add_argument("-b", "--beta_factor", type=float, help="Multiplier for the mean-reversion central value", default=1)
-    parser.add_argument("-s", "--sigma_factor", type=float, help="Multiplier for the volatility", default=1)
-    parser.add_argument("-xiu", "--xi_upper", type=float, help="xiUpper for APY bounds", default=39)
-    parser.add_argument("-xid", "--xi_lower", type=float, help="xiLower for APY bounds", default=56)
-    parser.add_argument("-l", "--lookback", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=30)
+    parser.add_argument("-a", "--alpha_factor", type=float, help="Multiplier for the mean-reversion speed", default=0.001347882504)
+    parser.add_argument("-b", "--beta_factor", type=float, help="Multiplier for the mean-reversion central value", default=0.07042384498)
+    parser.add_argument("-s", "--sigma_factor", type=float, help="Multiplier for the volatility", default=0.000002051031621)
+    parser.add_argument("-xiu", "--xi_upper", type=float, help="xiUpper for APY bounds", default=31)
+    parser.add_argument("-xid", "--xi_lower", type=float, help="xiLower for APY bounds", default=59)
+    parser.add_argument("-l", "--lookback", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=10)
     parser.add_argument("-ls", "--lookback_standard", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=30)
     parser.add_argument("-w", "--write_all_out", action="store_true", help="Save all simulation runs to different DataFrames", default=False)
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode", default=False)
-    parser.add_argument("-eim", "--eta_im", type=float, help="IM multiplier for minimum margin requirement", default=0.002)
-    parser.add_argument("-elm", "--eta_lm", type=float, help="LM multiplier for minimum margin requirement", default=0.001)
+    parser.add_argument("-eim", "--eta_im", type=float, help="IM multiplier for minimum margin requirement", default=0.004613508282)
+    parser.add_argument("-elm", "--eta_lm", type=float, help="LM multiplier for minimum margin requirement", default=0.002687360151)
 
     tuneables = parser.parse_args()
 
