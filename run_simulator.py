@@ -279,7 +279,7 @@ def run_with_a_single_set_of_params(parser):
     parser.add_argument("-xiu", "--xi_upper", type=float, help="xiUpper for APY bounds", default=31)
     parser.add_argument("-xid", "--xi_lower", type=float, help="xiLower for APY bounds", default=59)
     parser.add_argument("-l", "--lookback", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=10)
-    parser.add_argument("-ls", "--lookback_standard", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=30)
+    parser.add_argument("-ls", "--lookback_standard", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=15)
     parser.add_argument("-w", "--write_all_out", action="store_true", help="Save all simulation runs to different DataFrames", default=False)
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode", default=False)
     parser.add_argument("-eim", "--eta_im", type=float, help="IM multiplier for minimum margin requirement", default=0.004613508282)
