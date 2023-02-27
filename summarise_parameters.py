@@ -1,4 +1,3 @@
-from cmath import atan
 import pandas as pd
 import numpy as np
 import json
@@ -7,15 +6,9 @@ from Simulator import Simulator
 from utils import SECONDS_IN_YEAR
 from RNItoAPY import * 
 
-DF_TO_OPTIMIZE = "rocket"
-POSITION = "RiskEngineOptimisation_lend_rETH_V2" 
-tau_u_factor, tau_d_factor, sigma_factor = 1, 0.1, 0.75 #rETH lend
-#tau_u_factor, tau_d_factor, sigma_factor = 1.2, 1, 1 #stETH lend
-#tau_u_factor, tau_d_factor, sigma_factor = 1.7, 0.3, 0.75 #aUSDC and aDAI lend
-#tau_u_factor, tau_d_factor, sigma_factor = 3.0, 0.1, 1 #cDAI lend
-#tau_u_factor, tau_d_factor, sigma_factor = 0.7, 1, 1 #aUSDC borrow
-#tau_u_factor, tau_d_factor, sigma_factor = 1.5, 0.2, 0.75 #aWETH borrow
-#tau_u_factor, tau_d_factor, sigma_factor = 1, 1, 0.75 #cUSDT borrow
+DF_TO_OPTIMIZE = "aave_v3"
+POSITION = "RiskEngineOptimisation_v3_aUSDC_Ethereum_Q1_2023_15days"
+tau_u_factor, tau_d_factor, sigma_factor, eta_im_factor, eta_lm_factor  = 1, 1, 1, 1, 1
 
 pos = position[POSITION]
 WAD = 1e18
@@ -54,15 +47,19 @@ for p in all_params:
         final_params[p] = params[p]*tau_u_factor
     elif p=="tau_d":
         final_params[p] = params[p]*tau_d_factor
+    elif p=="eta_lm":
+        final_params[p] = params[p]*eta_lm_factor
+    elif p=="eta_im":
+        final_params[p] = params[p]*eta_im_factor
     else:
         final_params[p] = params[p]
     if p!="lookback":
         final_params[p] = final_params[p]*WAD
-final_params["gamma_fee"] = 0.003
+final_params["gamma_fee"] = 0.001
 final_params["lambda_fee"] = 0
-final_params["alpha"] = alpha*WAD
-final_params["beta"] = beta*WAD
-final_params["sigma_squared"] = sigma_squared*WAD
+final_params["alpha"] = np.abs(alpha)*WAD
+final_params["beta"] = np.abs(beta)*WAD
+final_params["sigma_squared"] = np.abs(sigma_squared)*WAD
 
 for k, v in final_params.items():
     print(k, ": ", "{0:.0f}".format(v))
