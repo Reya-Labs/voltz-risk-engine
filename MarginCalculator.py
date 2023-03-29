@@ -4,7 +4,7 @@ from utils import SECONDS_IN_YEAR, date_to_unix_time, generate_margin_requiremen
 
 class MarginCalculator:
 
-    def __init__(self, apyUpperMultiplier, apyLowerMultiplier, sigmaSquared, alpha, beta, xiUpper, xiLower, 
+    def __init__(self, apyUpperMultiplier, apyLowerMultiplier, sigmaSquared, alpha, beta, xiUpper, xiLower,
                  etaLM, etaIM, tMax, minMarginToIncentiviseLiquidators):
 
         # ref: https://github.com/Voltz-Protocol/voltz-core/blob/39da8d657df2bb7ce2e0260e635b2202c3d8d82d/contracts/interfaces/IMarginEngine.sol#L16
@@ -16,18 +16,18 @@ class MarginCalculator:
         self.beta = beta
         self.xiUpper = xiUpper
         self.xiLower = xiLower
-        self.etaLM = etaLM 
+        self.etaLM = etaLM
         self.etaIM = etaIM
         self.tMax = tMax
         self.minMarginToIncentiviseLiquidators = minMarginToIncentiviseLiquidators
 
     # tested
-    def worstCaseVariableFactorAtMaturity(self, timeInSecondsFromNowToMaturity, isFT, isLM, 
+    def worstCaseVariableFactorAtMaturity(self, timeInSecondsFromNowToMaturity, isFT, isLM,
                                           lowerApyBound, upperApyBound, accruedVariableFactor):
 
         timeInYearsFromNowToMaturity = timeInSecondsFromNowToMaturity / SECONDS_IN_YEAR
         rateFromStart = accruedVariableFactor + 1
-        
+
         apyBound = lowerApyBound
         if isFT:
             apyBound = upperApyBound
@@ -38,8 +38,8 @@ class MarginCalculator:
             else:
                 apyBound = apyBound * self.apyLowerMultiplier
 
-
-        variableFactor = rateFromStart * (apyBound * timeInYearsFromNowToMaturity + 1) - 1
+        variableFactor = rateFromStart * \
+            (apyBound * timeInYearsFromNowToMaturity + 1) - 1
         return variableFactor
 
     # Extract the individual cashflow components
@@ -50,11 +50,11 @@ class MarginCalculator:
         exp1 = fixedTokenBalance * \
             self.fixedFactor(True, termStartTimestamp,
                              termEndTimestamp, currentTimestamp)
-        
+
         return exp1
 
     def getExp2(self, fixedTokenBalance, variableTokenBalance, isLM, lowerApyBound, upperApyBound,
-                              termEndTimestamp, currentTimestamp, accruedVariableFactor):
+                termEndTimestamp, currentTimestamp, accruedVariableFactor):
         if (fixedTokenBalance >= 0) and (variableTokenBalance >= 0):
             return 0
 
@@ -69,7 +69,7 @@ class MarginCalculator:
         )
 
         return exp2
-    
+
     # inherintely tested
     def _getMarginRequirement(self, fixedTokenBalance, variableTokenBalance, isLM, lowerApyBound, upperApyBound,
                               termStartTimestamp, termEndTimestamp, currentTimestamp, accruedVariableFactor):
@@ -96,7 +96,7 @@ class MarginCalculator:
             margin = -maxCashflowDeltaToCoverPostMaturity
         else:
             margin = 0
-  
+
         minimumMarginRequirement = self.getMinimumMarginRequirement(variableTokenBalance=variableTokenBalance,
                                                                     currentTimestamp=currentTimestamp,
                                                                     termEndTimestamp=termEndTimestamp,
@@ -113,9 +113,11 @@ class MarginCalculator:
     # tested
     def getMinimumMarginRequirement(self, variableTokenBalance, currentTimestamp, termEndTimestamp, isLM):
         timeInSecondsFromNowToMaturity = termEndTimestamp - currentTimestamp
-        
-        minimumMarginRequirement = abs(variableTokenBalance) * self.etaLM if isLM else abs(variableTokenBalance) * self.etaIM
-        minimumMarginRequirement = minimumMarginRequirement * timeInSecondsFromNowToMaturity/SECONDS_IN_YEAR
+
+        minimumMarginRequirement = abs(
+            variableTokenBalance) * self.etaLM if isLM else abs(variableTokenBalance) * self.etaIM
+        minimumMarginRequirement = minimumMarginRequirement * \
+            timeInSecondsFromNowToMaturity/SECONDS_IN_YEAR
 
         return minimumMarginRequirement
 
@@ -175,7 +177,7 @@ class MarginCalculator:
     # tested
     def getExtraBalances(self, fromTick, toTick, liquidity, variableFactor, termStartTimestamp, termEndTimestamp, currentTimestamp):
 
-        assert(liquidity >= 0)
+        assert (liquidity >= 0)
 
         fromTickSqrtRatio = getSqrtRatioAtTick(fromTick)
         toTickSqrtRatio = getSqrtRatioAtTick(toTick)
@@ -352,7 +354,19 @@ class MarginCalculator:
                 accruedVariableFactor=variableFactor
             )
 
-    def generate_full_output(self, df_apy, date_original, tokens, leverage_factor=1, notional=1000, lp_fix=0, lp_var=0, tick_l=5000, tick_u=6000, fr_market="neutral"):
+    def generate_full_output(
+        self,
+        df_apy,
+        date_original,
+        tokens,
+        leverage_factor=1,
+        notional=1000,
+        lp_fix=0,
+        lp_var=0,
+        tick_l=5000,
+        tick_u=6000,
+        fr_market="neutral"
+    ):
 
         # All tokens
         # All trader types
@@ -379,9 +393,12 @@ class MarginCalculator:
             df = preprocess_df(df, token, fr_market=fr_market)
             # Now we need to update the fixed and variable token balances to account for
             # different possibilities/markets in the fixed rate
-            ft_fixed_token_balance = notional * (df["fr"].values[0] * 100)
+
+            daily_fixed_rate = df["fr"].values[0]
+
+            ft_fixed_token_balance = notional * (daily_fixed_rate * 100)
             ft_variable_token_balance = -notional
-            vt_fixed_token_balance = -notional * (df["fr"].values[0] * 100)
+            vt_fixed_token_balance = -notional * (daily_fixed_rate * 100)
             vt_variable_token_balance = notional
 
             balance_per_token[token] = {
@@ -390,44 +407,71 @@ class MarginCalculator:
                 "vt_fix": vt_fixed_token_balance,
                 "vt_var": vt_variable_token_balance,
             }
+
+            fixed_factor_series = pd.Series(
+                data=1, index=range(len(df) - 1, -1, -1))
+
+            fixed_factor_series = pd.Series(
+                data=(fixed_factor_series.index * daily_fixed_rate * 0.01))
+
             for trader_type in trader_types:
 
                 if trader_type == 'ft':
 
-                    df = generate_margin_requirements_trader(self, df, ft_fixed_token_balance,
-                                                                ft_variable_token_balance, 'ft', f'{token}')
+                    df = generate_margin_requirements_trader(
+                        self,
+                        df,
+                        ft_fixed_token_balance,
+                        ft_variable_token_balance,
+                        'ft',
+                        f'{token}'
+                    )
 
-                    daily_fixed_rate = (
-                        (abs(ft_fixed_token_balance) / ft_variable_token_balance) / 100) / 365
+                    df = generate_pnl_trader(
+                        df,
+                        fixed_factor_series,
+                        ft_fixed_token_balance,
+                        ft_variable_token_balance,
+                        'ft',
+                        f'{token}'
+                    )
 
-                    fixed_factor_series = pd.Series(data=1, index=range(len(df)))
-                    fixed_factor_series = pd.Series(
-                        data=fixed_factor_series.index * daily_fixed_rate)
-
-                    df = generate_pnl_trader(df, fixed_factor_series, ft_fixed_token_balance,
-                                                                ft_variable_token_balance, 'ft', f'{token}')
-
-                    df = generate_net_margin_trader(df,
-                                                                        ft_fixed_token_balance, ft_variable_token_balance, 'ft', f'{token}', leverage_factor=leverage_factor)
+                    df = generate_net_margin_trader(
+                        df,
+                        ft_fixed_token_balance,
+                        ft_variable_token_balance,
+                        'ft',
+                        f'{token}',
+                        leverage_factor=leverage_factor
+                    )
 
                 elif trader_type == 'vt':
 
-                    df = generate_margin_requirements_trader(self, df, vt_fixed_token_balance,
-                                                                                vt_variable_token_balance, 'vt', f'{token}')
+                    df = generate_margin_requirements_trader(
+                        self,
+                        df,
+                        vt_fixed_token_balance,
+                        vt_variable_token_balance,
+                        'vt',
+                        f'{token}'
+                    )
 
-                    daily_fixed_rate = (
-                        (abs(vt_fixed_token_balance) / vt_variable_token_balance) / 100) / 365
+                    df = generate_pnl_trader(
+                        df,
+                        fixed_factor_series,
+                        vt_fixed_token_balance,
+                        vt_variable_token_balance,
+                        'vt',
+                        f'{token}'
+                    )
 
-                    fixed_factor_series = pd.Series(data=1, index=range(len(df)))
-                    fixed_factor_series = pd.Series(
-                        data=fixed_factor_series.index * daily_fixed_rate)
-
-                    df = generate_pnl_trader(df, fixed_factor_series,
-                                                                vt_fixed_token_balance,
-                                                                vt_variable_token_balance, 'vt', f'{token}')
-
-                    df = generate_net_margin_trader(df,
-                                                                        vt_fixed_token_balance, vt_variable_token_balance, 'vt', f'{token}', leverage_factor=leverage_factor)
+                    df = generate_net_margin_trader(
+                        df,
+                        vt_fixed_token_balance,
+                        vt_variable_token_balance,
+                        'vt',
+                        f'{token}',
+                        leverage_factor=leverage_factor)
 
                 else:
                     df = generate_margin_requirements_lp(
@@ -459,7 +503,7 @@ class MarginCalculator:
             dfs_per_token.append(df)
         result = pd.concat(dfs_per_token, axis=1)
         # Add t_year for downstream APY calculation
-        result["t_years"] = [(i-result.index.values[0]) /
-                            SECONDS_IN_YEAR for i in result.index.values]
+        result["t_years"] = [(i-result.index.values[0])
+                             /  SECONDS_IN_YEAR for i in result.index.values]
 
         return result, balance_per_token

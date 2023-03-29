@@ -6,7 +6,7 @@ import json
 import pandas as pd
 import os
 import run_simulator
-from position_dict import position
+from position import position
 import matplotlib.pyplot as plt
 import numpy as np
 import copy

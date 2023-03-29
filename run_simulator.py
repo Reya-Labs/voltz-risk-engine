@@ -1,5 +1,4 @@
-from multiprocessing.pool import RUN
-from tkinter import W
+import math
 import pandas as pd
 from MarginCalculator import MarginCalculator
 from PortfolioCalculator import PortfolioCalculator
@@ -8,21 +7,11 @@ import json
 import os
 import optuna
 import numpy as np
-# Positions -- want to disentangle positions from parameters
-from position_dict import position
-from constants import ALPHA, BETA, MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS, SIGMA_SQUARED, XI_LOWER, XI_UPPER
+from position import position
 from utils import SECONDS_IN_YEAR, fixedRateToTick, notional_to_liquidity
 from RNItoAPY import * 
 
 # ref: https://github.com/optuna/optuna-examples/blob/main/sklearn/sklearn_optuna_search_cv_simple.py
-# Globals 
-RUN_OPTUNA = False
-DF_TO_OPTIMIZE = "aave_v3_lend"
-
-# Positions
-POSITION = "RiskEngineOptimisation_lend_aUSDC_V3"
-pos = position[POSITION]
-top_dir = f"./simulations/{POSITION}/"
 
 def normalise(array):
     if len(array)==1:
@@ -38,14 +27,14 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
 
     # Generate a simulation-specific directory, based on different tuneable parameters
     if sim_dir is None:
-        sim_dir = top_dir+f"{DF_TO_OPTIMIZE}/"
+        sim_dir = top_dir+f"{input_dataset_name}/"
     
     if not os.path.exists(sim_dir):
         os.makedirs(sim_dir)
    
     # Reload data-set e.g. every time Optuna enters a new trial
-    token = pos["tokens"][0]
-    df_raw = pd.read_csv(f"./rni_historical_data/{DF_TO_OPTIMIZE}_{token}.csv")
+    token = position["tokens"][0]
+    df_raw = pd.read_csv(f"./rni_historical_data/{input_dataset_name}.csv")
     # Get APYs from the raw liquidity indices
     df = getPreparedRNIData(df_raw)
     df = getFrequentData(df, frequency=30)
@@ -57,16 +46,16 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
     
     # We need to make sure that the DataFrame does not contain NaNs because of a lookback window that
     # is too large
-    if len(df)-lookback <= pos["pool_size"]:
-        lookback = len(df)-pos["pool_size"] # Maximum possible lookback
-    if pos["pool_size"] != -1:
-        df = df.iloc[-pos["pool_size"]:] # Only keep the latest data for a given N-day pool
+    if len(df)-lookback <= position["pool_size"]:
+        lookback = len(df)-position["pool_size"] # Maximum possible lookback
+    if position["pool_size"] != -1:
+        df = df.iloc[-position["pool_size"]:] # Only keep the latest data for a given N-day pool
 
-    if len(df_for_values)-lookback_standard <= pos["pool_size"]:
-        lookback_standard = len(df_for_values)-pos["pool_size"] # Maximum possible lookback
-    if pos["pool_size"] != -1:
-        df_for_values = df_for_values.iloc[-pos["pool_size"]:] # Only keep the latest data for a given N-day pool
-    
+    if len(df_for_values)-lookback_standard <= position["pool_size"]:
+        lookback_standard = len(df_for_values)-position["pool_size"] # Maximum possible lookback
+    if position["pool_size"] != -1:
+        df_for_values = df_for_values.iloc[-position["pool_size"]:] # Only keep the latest data for a given N-day pool
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # # # 1. Instantiate Simulator: inherits from Calibrator, gets CIR model params, generates the APY bounds # # # 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -88,16 +77,22 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # 2. Instantiate the MarginCalculator. Will update downstream in the simulation # # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    a, b, sigma = a_values[token], b_values[token], sigma_values[token]
+    alpha = a*b*alpha_factor
+    beta = a*beta_factor
+    sigma_squared = (sigma*sigma_factor)**2
+
     mc = MarginCalculator(
         apyUpperMultiplier=tau_u, 
         apyLowerMultiplier=tau_d, 
-        sigmaSquared=SIGMA_SQUARED, 
-        alpha=ALPHA, 
-        beta=BETA, 
-        xiUpper=XI_UPPER, 
-        xiLower=XI_LOWER, 
+        sigmaSquared=sigma_squared,
+        alpha=alpha,
+        beta=beta,
+        xiUpper=xi_upper, 
+        xiLower=xi_lower, 
         tMax=SECONDS_IN_YEAR, 
-        minMarginToIncentiviseLiquidators=MIN_MARGIN_TO_INCENTIVIZE_LIQUIDATORS,
+        minMarginToIncentiviseLiquidators=0,
         etaLM=eta_lm,
         etaIM=eta_im
     )
@@ -110,11 +105,12 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
             df_protocol=None,
             lambdaFee=lambda_fee,
             gammaFee=gamma_fee,
-            tokens=pos["tokens"],
+            tokens=position["tokens"],
             liquidity=1000,
             balances=None,
-            tPool=(pos["pool_size"]/365)*SECONDS_IN_YEAR,
-            lpPosInit=(pos["lp_fix"], pos["lp_var"]),
+            tPool=(position["pool_size"]/365)*SECONDS_IN_YEAR,
+            lpPosInit=(position["lp_fix"], position["lp_var"]),
+            # TODO: assume more realistic fixed rate
             ftPosInit=(1000,-1000), # FT positions
             vtPosInit=(-1000,1000), # VT positions
             notional=1000, # Absolute value of the variable token balance of a trader (both ft and vt are assumed to have the same)
@@ -123,11 +119,11 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
 
     # Define the relevant marker cases to loop over and construct different APY and IRS pool
     # scenarios
-    f_values = pos["f_values"] # 1. Volatility scalings 
-    rate_ranges = pos["rate_ranges"] # 2. Rate ranges, in percentage points, which we convert to tick ranges of interest
-    fr_markets = pos["fr_markets"] # 3. Fixed rate markets: neutral, bearish on fixed rate, bullish on fixed rate
-    leverage_factors = pos["leverage_factors"] # 4. Leverage scalings, where leverage = notional / margin deposited 
-    gamma_fees = pos["gamma_fees"] if pos["gamma_fees"] is not None else [gamma_fee] # 5. Different LP fees
+    f_values = position["f_values"] # 1. Volatility scalings 
+    rate_ranges = position["rate_ranges"] # 2. Rate ranges, in percentage points, which we convert to tick ranges of interest
+    fr_markets = position["fr_markets"] # 3. Fixed rate markets: neutral, bearish on fixed rate, bullish on fixed rate
+    leverage_factors = position["leverage_factors"] # 4. Leverage scalings, where leverage = notional / margin deposited 
+    gamma_fees = position["gamma_fees"] if position["gamma_fees"] is not None else [gamma_fee] # 5. Different LP fees
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # 4. Run simulations of the IRS pool over all the different market conditions # # #
@@ -138,6 +134,7 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
         df_apy = sim.model_apy(dt=1, F=f) # APY model
         df_apy = sim.compute_apy_confidence_interval(xi_lower=xi_lower, xi_upper=xi_upper, df_apy=df_apy, F=f, \
             alpha_factor=alpha_factor, beta_factor=beta_factor) # APY bounds (xi upper and lower subject to change)
+        
         if write_all_out:
             df_apy.to_csv(sim_dir+out_name+f"_F_value_{f}.csv")
         
@@ -158,13 +155,26 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
                         pc.gammaFee = fee # Reset the fee
                         summary_dict[f"F={f} scale, {market} market, {rate_range} tick, {lev} leverage factor, {fee} fee"] = {}
                         
-                        df_apy_mc, balances = mc.generate_full_output(df_apy=df_apy, date_original=df.index, tokens=pos["tokens"], notional=pos["notional"], lp_fix=pos["lp_fix"], \
-                            lp_var=pos["lp_var"], tick_l=lower, tick_u=upper, fr_market=market, leverage_factor=lev)
+                        df_apy_mc, balances = mc.generate_full_output(
+                            df_apy=df_apy, 
+                            date_original=df.index,
+                            tokens=position["tokens"],
+                            notional=position["notional"], 
+                            lp_fix=position["lp_fix"],
+                            lp_var=position["lp_var"], 
+                            tick_l=lower, 
+                            tick_u=upper, 
+                            fr_market=market, 
+                            leverage_factor=lev
+                        )
                         
                         # Now run the initial methods in the PortfolioCalculator to generate the LP PnL and the associated trader fees
                         pc.df_protocol = df_apy_mc
-                        pc.liquidity = notional_to_liquidity(notional=pos["notional"], \
-                            tick_l=lower, tick_u=upper)
+                        pc.liquidity = notional_to_liquidity(
+                            notional=position["notional"],
+                            tick_l=lower, 
+                            tick_u=upper
+                        )
 
                         # Reset the PortfolioCalculator with the new FT and VT positions (these change in each fixed rate market, which can
                         # now also change with the token)
@@ -221,8 +231,8 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
     meanLevFT = mp.dict_to_df(summary_dict, "Leverage FT", "Leverage").stack().values.flatten().mean()
     
     # Normalise and get the means
+    print("flatLev:", flatLev)
     meanLev = normalise(flatLev).mean() 
-    stdLev = normalise(flatLev).std() 
     
     # Pick up the VaRs for regularisation (in their natural units)
     meanLVaR_LP = np.array(mp.dict_to_df(summary_dict, "LVaR LP", "LVaRs").stack().values).flatten().mean()
@@ -255,10 +265,10 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
         print("meanGap_VT: ", minGap_VT)
         print("meanGap_LP: ", minGap_LP)
     
-    if not RUN_OPTUNA and return_df:
+    if not optuna_enabled and return_df:
         return df_apy_mc
     
-    if RUN_OPTUNA:
+    if optuna_enabled:
         # Maximise this -- use the VaRs for regularisation
         l_var_lim, i_var_lim = 0.05, 0.05
         eta_gap = eta_im-eta_lm
@@ -267,30 +277,17 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
 
         return obj
 
-def run_with_a_single_set_of_params(parser):
+def run_with_a_single_set_of_params():
+    with open(manual_parameters_file) as json_file:
+        tuneables = json.load(json_file)
 
-    parser.add_argument("-tu", "--tau_u", type=float, help="tau_u tuneable parameter", default=1.99)
-    parser.add_argument("-td", "--tau_d", type=float, help="tau_d tuneable parameter", default=0.5)
-    parser.add_argument("-lam", "--lambda_fee", type=float, help="lambda fee parameter", default=0.1)
-    parser.add_argument("-gamf", "--gamma_fee", type=float, help="gamma fee parameter", default=0.03)
-    parser.add_argument("-a", "--alpha_factor", type=float, help="Multiplier for the mean-reversion speed", default=0.001347882504)
-    parser.add_argument("-b", "--beta_factor", type=float, help="Multiplier for the mean-reversion central value", default=0.07042384498)
-    parser.add_argument("-s", "--sigma_factor", type=float, help="Multiplier for the volatility", default=0.000002051031621)
-    parser.add_argument("-xiu", "--xi_upper", type=float, help="xiUpper for APY bounds", default=31)
-    parser.add_argument("-xid", "--xi_lower", type=float, help="xiLower for APY bounds", default=59)
-    parser.add_argument("-l", "--lookback", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=10)
-    parser.add_argument("-ls", "--lookback_standard", type=int, help="Lookback parameter (no. of days) for the APY moving average", default=15)
-    parser.add_argument("-w", "--write_all_out", action="store_true", help="Save all simulation runs to different DataFrames", default=False)
-    parser.add_argument("-d", "--debug", action="store_true", help="Debug mode", default=False)
-    parser.add_argument("-eim", "--eta_im", type=float, help="IM multiplier for minimum margin requirement", default=0.004613508282)
-    parser.add_argument("-elm", "--eta_lm", type=float, help="LM multiplier for minimum margin requirement", default=0.002687360151)
+    print(tuneables)
 
-    tuneables = parser.parse_args()
+    for k in tuneables.keys():
+        print(k, tuneables[k], math.floor(tuneables[k] * 1e18))
 
     # Defining dictionary for the tuneable parameters
-    tuneable_dict = dict((k, v) for k, v in vars(tuneables).items() if v is not None)
-    print(tuneable_dict)
-    main(out_name=f"df_{DF_TO_OPTIMIZE}_RiskEngineModel", **tuneable_dict)
+    main(out_name=f"df_{input_dataset_name}_RiskEngineModel", **tuneables)
 
 
 def objective(trial):
@@ -310,9 +307,9 @@ def objective(trial):
     # Default protocol fee constraints for v1
     # Here we summarise default fee struccture parameters for v1
     lambda_fee = 0 # i.e. no protocol collected fees -- update this
-    gamma_fee = pos["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
+    gamma_fee = position["gamma_fee"] # Just investigating a few different fee parameters for v1: 0.001, 0.003, 0.005 
 
-    obj = main(out_name=f"df_{DF_TO_OPTIMIZE}_RiskEngineModel",
+    obj = main(out_name=f"df_{input_dataset_name}_RiskEngineModel",
                         tau_u=tau_u, tau_d=tau_d, lambda_fee=lambda_fee,
                         gamma_fee=gamma_fee, alpha_factor=alpha_factor, beta_factor=beta_factor,
                         sigma_factor=sigma_factor, xi_lower=xi_lower, xi_upper=xi_upper, eta_im=eta_im, eta_lm=eta_lm,
@@ -322,32 +319,36 @@ def objective(trial):
     return obj
 
 
-def run_param_optimization(parser):
+def run_param_optimization():
+    # Create study and start optimisation
+    study = optuna.create_study(
+        direction="maximize", 
+        sampler=optuna.samplers.TPESampler(), 
+        pruner=optuna.pruners.SuccessiveHalvingPruner()
+    )
 
-    parser.add_argument("-n_trials", "--n_trials", type=float, help="Number of optimization trials", default=2)
-    parser.add_argument("-d", "--debug", action="store_true", help="Debug mode", default=False)
-    n_trials = parser.parse_args().n_trials
-
-    study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(), pruner=optuna.pruners.SuccessiveHalvingPruner())
-    study.optimize(objective, n_trials=n_trials)
-    
-    # Relevant output plots
-    out_dir = top_dir+f"{DF_TO_OPTIMIZE}/optuna/"
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    study.optimize(
+        func=objective, 
+        n_trials=n_trials
+    )
 
     # Output optimised results
     trial = study.best_trial
     print(f"Best optimised value: {trial.value}")
 
+    # Run the objective with the best trial such that the plots/datasets reflect this
+    objective(trial)
+
     print("Optimised parameters: ")
     for key, value in trial.params.items():
         print(f"{key}: {value}")
     
+    # Plot optimisation history
     fig = optuna.visualization.plot_optimization_history(study)
-    fig.write_image(out_dir+f"optuna_history_{DF_TO_OPTIMIZE}.png")
+    fig.write_image(out_dir+f"optuna_history.png")
     
-    with open(out_dir+f"optimised_parameters_{DF_TO_OPTIMIZE}.json", "w") as fp:
+    # Export optimiser parameters as JSON
+    with open(out_dir+f"optimised_parameters.json", "w") as fp:
         json.dump(trial.params, fp, indent=4)
 
 if __name__=="__main__":
@@ -355,7 +356,27 @@ if __name__=="__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser()
 
-    if RUN_OPTUNA:
-        run_param_optimization(parser=parser)
+    parser.add_argument("-opt", "--optimization", type=bool, help="Flag to enable optimization", default=False)
+    parser.add_argument("-ds", "--dataset", type=str, help="Dataset with raw liquidity indices", required=True)
+    parser.add_argument("-n_trials", "--n_trials", type=float, help="Number of optimization trials", default=100)
+
+    optuna_enabled = parser.parse_args().optimization
+    input_dataset_name = parser.parse_args().dataset
+    n_trials = parser.parse_args().n_trials
+
+    # Globals 
+    top_dir = f"./simulations/"
+
+    # Optuna output directory
+    out_dir = top_dir+f"{input_dataset_name}/optuna/"
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    if optuna_enabled:
+        print("Running optimization...")
+        run_param_optimization()
     else:
-        run_with_a_single_set_of_params(parser=parser)
+        # Parameter json for single run
+        print("Simulating given parameters...")
+        manual_parameters_file = f"simulations/{input_dataset_name}/params.json"
+        run_with_a_single_set_of_params()
