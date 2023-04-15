@@ -7,8 +7,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from position_dict import position
-from run_simulator import POSITION
+from position import position
 import json
 
 class MasterPlotter():
@@ -27,7 +26,7 @@ class MasterPlotter():
     #   metric: SRs
     #   trader: SR FT
     def dict_to_df(data, trader, metric):
-        tokens = position[POSITION]["tokens"] # Just these tokens for now
+        tokens = position["tokens"] # Just these tokens for now
         scales = list(data.keys()) # E.g. the different volatility scales
         the_dict = {}
         for s in scales:

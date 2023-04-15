@@ -2,3 +2,5 @@ __pycache__
 simulations
 .ipynb_checkpoints
 .idea/
+.DS_Store
+rni_historical_data
