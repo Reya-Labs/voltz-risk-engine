@@ -12,7 +12,10 @@ parser = ArgumentParser()
 
 parser.add_argument(
     "-ds", "--dataset", help="Dataset with raw liquidity indices", required=True)
+parser.add_argument("-rate_oracle_mode", "--rate_oracle_mode", type=str, help="Rate Oracle Mode: linear/compounding/sofr", required=True)
+
 input_dataset_name = parser.parse_args().dataset
+rate_oracle_mode = parser.parse_args().rate_oracle_mode
 
 # Globals
 tau_u_factor, tau_d_factor, sigma_factor, eta_im_factor, eta_lm_factor = 1, 1, 1, 1, 1
@@ -28,7 +31,7 @@ token = position["tokens"][0]
 df_raw = pd.read_csv(f"./rni_historical_data/{input_dataset_name}.csv")
 df = getPreparedRNIData(df_raw)
 df = getFrequentData(df, frequency=30)
-df_for_values = getDailyApy([[token, df]], lookback=10)
+df_for_values = getDailyApy([[token, df]], lookback=10, rate_oracle_mode=rate_oracle_mode)
 df_for_values.set_index("date", inplace=True)
 
 if len(df_for_values)-10 <= position["pool_size"]:
