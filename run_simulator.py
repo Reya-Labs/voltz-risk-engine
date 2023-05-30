@@ -38,8 +38,8 @@ def main(out_name, tau_u=1.5, tau_d=0.7, lookback=10, lookback_standard=10, lamb
     # Get APYs from the raw liquidity indices
     df = getPreparedRNIData(df_raw)
     df = getFrequentData(df, frequency=30)
-    df_for_values = getDailyApy([[token, df]], lookback=lookback_standard)
-    df = getDailyApy([[token, df]], lookback=lookback)
+    df_for_values = getDailyApy([[token, df]], lookback=lookback_standard, rate_oracle_mode=rate_oracle_mode)
+    df = getDailyApy([[token, df]], lookback=lookback, rate_oracle_mode=rate_oracle_mode)
 
     df.set_index("date", inplace=True)
     df_for_values.set_index("date", inplace=True)
@@ -359,10 +359,12 @@ if __name__=="__main__":
     parser.add_argument("-opt", "--optimization", type=bool, help="Flag to enable optimization", default=False)
     parser.add_argument("-ds", "--dataset", type=str, help="Dataset with raw liquidity indices", required=True)
     parser.add_argument("-n_trials", "--n_trials", type=float, help="Number of optimization trials", default=100)
+    parser.add_argument("-rate_oracle_mode", "--rate_oracle_mode", type=str, help="Rate Oracle Mode: linear/compounding/sofr", required=True)
 
     optuna_enabled = parser.parse_args().optimization
     input_dataset_name = parser.parse_args().dataset
     n_trials = parser.parse_args().n_trials
+    rate_oracle_mode = parser.parse_args().rate_oracle_mode
 
     # Globals 
     top_dir = f"./simulations/"

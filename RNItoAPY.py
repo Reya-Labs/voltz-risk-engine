@@ -3,7 +3,7 @@ import numpy as np
 
 import datetime
 
-from utils import SECONDS_IN_DAY, SECONDS_IN_YEAR, date_to_unix_time
+from utils import SECONDS_IN_DAY, SECONDS_IN_YEAR, SECONDS_IN_360YEAR, date_to_unix_time
 
 # """
 #    This function applies the following transformations to the raw data:
@@ -71,7 +71,7 @@ def getFrequentData(df_rni, frequency):
 #    This function returns the rate between two timestamps.
 #    It requires a prepared DataFrame.
 # """
-def getRateFromTo(df_rni, start, end, check_increasing=True):
+def getRateFromTo(df_rni, start, end, rate_oracle_mode, check_increasing=True):
     if start > end:
         raise Exception("Invalid dates (start > end)")
 
@@ -90,24 +90,39 @@ def getRateFromTo(df_rni, start, end, check_increasing=True):
 
     if (start_rate > end_rate):
         raise Exception("Misconfiguration in the dataset (start_rate > end_rate)")
+    
+    if rate_oracle_mode == "linear":
+        rate = end_rate - start_rate
+    elif rate_oracle_mode == "compounding" or rate_oracle_mode == "sofr":
+        rate = end_rate / start_rate - 1
+    else:
+        raise Exception("Unknown rate oracle mode " + rate_oracle_mode)
 
-    return end_rate / start_rate - 1
+    return rate
 
 # """
 #    This function returns the apy between two timestamps.
 #    It requires a prepared DataFrame.
 # """
-def getApyFromTo(df_rni, start, end, check_increasing=True):
-    rate = getRateFromTo(df_rni, start, end, check_increasing)
+def getApyFromTo(df_rni, start, end, rate_oracle_mode, check_increasing=True):
+    rate = getRateFromTo(df_rni, start, end, rate_oracle_mode, check_increasing)
 
-    apy = pow(1 + rate, SECONDS_IN_YEAR / (end - start)) - 1
+    # compound continuously over time
+    if rate_oracle_mode == "linear":
+        apy = rate / ((end - start) / SECONDS_IN_YEAR)
+    elif rate_oracle_mode == "compounding": 
+        apy = pow(1 + rate, SECONDS_IN_YEAR / (end - start)) - 1
+    elif rate_oracle_mode == "sofr": #compound fragmented per days, relative to a 360-day year
+        apy = rate * (SECONDS_IN_360YEAR / (end - start))
+    else:
+        raise Exception("Unknown rate oracle mode " + rate_oracle_mode)
 
     return apy 
 
 # """
 #    This function returns the rate between two timestamps.
 # """
-def getDailyApy(datasets, lookback, check_increasing=True):
+def getDailyApy(datasets, lookback, rate_oracle_mode, check_increasing=True):
     no_of_datasets = len(datasets)
 
     if not no_of_datasets > 0:
@@ -138,7 +153,7 @@ def getDailyApy(datasets, lookback, check_increasing=True):
         dates.append(str(datetime.datetime.utcfromtimestamp(daily_date)))
 
         for i in range(no_of_datasets):
-            apys[i].append(getApyFromTo(df_rni, daily_date - lookback * SECONDS_IN_DAY, daily_date))
+            apys[i].append(getApyFromTo(df_rni, daily_date - lookback * SECONDS_IN_DAY, daily_date, rate_oracle_mode))
     
     df_apy = pd.DataFrame()
     df_apy["date"] = dates

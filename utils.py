@@ -7,6 +7,7 @@ from constants import FT_ERROR, FT_FACTOR
 SECONDS_IN_DAY = 86400
 SECONDS_IN_WEEK = 604800
 SECONDS_IN_YEAR = 31536000
+SECONDS_IN_360YEAR = 31104000
 
 # tick = 1 / (log in base 1.0001 of fixedRate)
 
